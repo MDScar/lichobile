@@ -1,4 +1,4 @@
-import { fetchJSON } from '../../../http'
+import { SESSION_ID_KEY, fetchJSON } from '../../../http'
 import { ExplorerData } from './interfaces'
 
 const explorerEndpoint = 'https://explorer.lichess.ovh'
@@ -31,6 +31,7 @@ export function openingXhr(variant: VariantKey, fen: string, config: OpeningConf
     headers: {
       'Accept': 'application/json, text/*',
       'X-Requested-With': '__delete',
+      [SESSION_ID_KEY]: '__delete',
     },
     credentials: 'omit',
     query: params
@@ -42,6 +43,7 @@ export function tablebaseXhr(variant: VariantKey, fen: string): Promise<Explorer
     headers: {
       'Accept': 'application/json, text/*',
       'X-Requested-With': '__delete',
+      [SESSION_ID_KEY]: '__delete',
     },
     credentials: 'omit',
     query: {

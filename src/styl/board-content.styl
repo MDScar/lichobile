@@ -1,15 +1,20 @@
 .content_round
-  flex 1 1 auto
+  width 100%
+  height var(--content-height)
   display flex
   flex-flow column nowrap
   justify-content center
   min-height 0 // fix chrome bug
+  @media only screen and (orientation: portrait) and (min-width 768px) and (min-height 768px)
+    .actions_bar
+      width 94vw
+      margin 0 auto
+    > .playTable
+      > .antagonistInfos
+        padding 0
   @media only screen and (orientation: landscape)
     display flex
     flex-flow row nowrap
-
-.table
-  flex 1 1 auto
 
 .playable_board_wrapper, .board_wrapper
   flex-shrink 0
@@ -18,22 +23,21 @@
     height 100vw
     width 100vw
     &.halfsize
-      height 'calc((100vh - %s) / 2)' % headerHeight
-      width 'calc((100vh - %s) / 2)' % headerHeight
+      height calc(var(--content-height) / 2)
+      width calc(var(--content-height) / 2)
       align-self center
-  @media only screen and (orientation: portrait) and (aspect-ratio 3/4), (orientation: portrait) and (device-aspect-ratio 3/4)
-    height 98vw
-    width 98vw
-    margin 0 auto
+  @media only screen and (orientation: portrait) and (min-width 768px) and (min-height 768px)
+    height 94vw
+    width 94vw
+    margin auto
   @media only screen and (orientation: landscape)
-    height 'calc(100vh - %s)' % headerHeight
-    width 'calc(100vh - %s)' % headerHeight
-    flex 0 0 auto
-  @media only screen and (orientation: landscape) and (aspect-ratio 4/3), (orientation: landscape) and (device-aspect-ratio 4/3), (orientation landscape) and (device-aspect-ratio 3/4)
-    height 'calc(100vh - %s - 12vh)' % headerHeight
-    width 'calc(100vh - %s - 12vh)' % headerHeight
-    flex 0 0 auto
-    margin auto 0
+    height var(--board-side-land)
+    width var(--board-side-land)
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    height var(--board-side-land-tablet)
+    width var(--board-side-land-tablet)
+    margin auto
+    margin-left 3vh
 
   > svg
     overflow: hidden;
@@ -52,6 +56,9 @@
 
 .playable_board_wrapper
   position relative
+  @media only screen and (orientation: portrait) and (min-width 768px) and (min-height 768px)
+    &:first-child
+      margin-top 3vw
 
 .display_board
   width 100%
@@ -91,31 +98,59 @@
   overflow hidden
   display flex
   flex-flow column nowrap
-  > header
-    flex 0 0 auto
-  > .playersTable
-    min-height 0 // fix chrome 73 regression
-    padding 0 10px
-    flex 1 1 auto
-    display flex
-    flex-flow column nowrap
-    justify-content space-around
-  @media only screen and (max-height 400px) and (orientation landscape)
-    > .playersTable
-      justify-content space-around
-    .playTable
-      padding-left 0
-    .clock
-      font-size 20px
-      &.correspondence
-        font-size 15px
-  @media only screen and (orientation: landscape) and (min-width 801px)
-    .clock
-      font-size 25px
-      max-width initial
-  @media only screen and (orientation: landscape) and (min-width 801px) and (aspect-ratio 4/3), only screen and (orientation: landscape) and (min-width 801px) and (device-aspect-ratio 4/3)
-    .clock
-      max-width 180px
-  @media only screen and (orientation: landscape) and (min-width 1025px)
-    .clock
-      font-size 35px
+  min-height 0 // fix chrome 73 regression
+  padding 0 1em
+  flex 1 1 auto
+  justify-content space-around
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    margin 3vh
+    padding 0
+    > .actions_bar
+      flex 0 0 110px
+      flex-flow row wrap
+      > .action_bar_button
+        flex 1 1 33%
+        &:nth-child(1):nth-last-child(4),
+        &:nth-child(2):nth-last-child(3),
+        &:nth-child(3):nth-last-child(2),
+        &:nth-child(4):nth-last-child(1) {
+          flex 1 1 50%
+        }
+
+.mini_board_container
+  > .vsbloc
+    font-size 0.8em
+    background: linear-gradient(to bottom,rgba(40,40,40,1),rgba(34,34,34,1) 100%);
+    padding 5px
+    overflow hidden
+    text-align center
+    > .antagonists
+      display flex
+      flex-flow row nowrap
+      justify-content space-between
+      > .time
+        align-self center
+      > .player, > .opponent
+        max-width 49%
+        overflow hidden
+        text-overflow ellipsis
+      > .player
+        text-align left
+      > .opponent
+        text-align right
+
+.mini_board
+  position: relative;
+  height: 0;
+  padding-bottom: 100%;
+  width: 100%;
+  > .mini_board_helper
+    position: absolute;
+    width: 12.5%;
+    padding-bottom: 12.5%;
+    bottom: 0;
+    > .mini_board_wrapper
+      position: absolute;
+      width: 800%;
+      height: 800%;
+      bottom: 0;

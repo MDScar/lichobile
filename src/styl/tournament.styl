@@ -1,3 +1,36 @@
+
+.tournamentContainer
+  display: grid
+
+  grid-template-areas:
+    'infos'\
+    'leaderboard'\
+    'games'\
+    '.'
+  grid-gap: 2vmin
+
+  @media only screen and (min-width 800px)
+    grid-template-columns: repeat(2, 1fr)
+    grid-template-rows: auto repeat(3, fit-content(0))
+    grid-template-areas:
+      'infos infos'\
+      'leaderboard games'\
+      'leaderboard .';
+
+  &.finished
+    grid-template-areas:
+      'infos'\
+      'podium'\
+      'leaderboard'\
+      'games'\
+      '.'
+    @media only screen and (min-width 800px)
+      grid-template-areas:
+        'infos infos'\
+        'podium podium'\
+        'leaderboard games'\
+        'leaderboard .';
+
 .header-subTitle.tournament-subtTitle
   font-size 1em
 
@@ -12,6 +45,9 @@
     left 10px
     top 21px
     font-size 28px
+
+.tournamentList
+  flex-grow 1
 
 .tournamentListName
   text-align: left
@@ -41,10 +77,13 @@
   text-align center
 
 .tournamentStandings
+  margin-top 1em
   width 100%
   transition opacity 100ms
   &.loading
     opacity 0.8
+  @media only screen and (min-width 800px)
+    margin-top 0
 
 .on-fire
   &:before
@@ -60,7 +99,6 @@
   display flex
   flex-flow row nowrap
   justify-content space-between
-  padding 15px 0
   > .tournamentPoints
     flex 0 0 20%
     text-align right
@@ -85,6 +123,7 @@
   font-weight: bold
 
 .tournamentHeader
+  grid-area infos
   padding 10px 10px 0px 10px
 
 .tournamentConditions, .tournamentCreatorInfo, .tournamentPositionInfo, .tournamentTimeInfo, .tournamentSpotlightInfo
@@ -141,12 +180,11 @@
 
 .tournamentMiniBoard
   display flex
-  flex-flow column wrap
-  justify-content flex-start
-  align-items center
+  flex-flow column nowrap
   margin-bottom 1em
 
 .podium
+  grid-area podium
   display flex
   flex-flow row nowrap
   font-size 0.75em
@@ -217,9 +255,13 @@
     letter-spacing -1px
 
 .tournamentLeaderboard
+  grid-area leaderboard
   display flex
   flex-flow column nowrap
   padding 0 10px
+
+.tournamentGames
+  grid-area games
 
 .flagRank
   &:before
@@ -259,7 +301,8 @@
   > header
     box-sizing content-box
     > .playerModalHeader
-      padding 0 40px
+      padding-left 40px
+      padding-right 40px
       overflow hidden
       white-space nowrap
       text-overflow ellipsis

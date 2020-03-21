@@ -1,4 +1,4 @@
-import * as h from 'mithril/hyperscript'
+import h from 'mithril/hyperscript'
 import i18n from '../../i18n'
 import popupWidget from '../shared/popup'
 import router from '../../router'
@@ -14,7 +14,6 @@ export interface ISettingsCtrl {
   root: AnalyseCtrl
   s: {
     smallBoard: boolean
-    boardPosition: '1' | '2'
     showBestMove: boolean
     showComments: boolean
     flip: boolean
@@ -26,7 +25,6 @@ export interface ISettingsCtrl {
   close(fBB?: string): void
   isOpen(): boolean
   toggleBoardSize(): void
-  setBoardPosition(pos: '1' | '2'): void
   toggleBestMove(): void
   toggleComments(): void
   cevalSetMultiPv(pv: number): void
@@ -52,7 +50,6 @@ export default {
 
     const s = {
       smallBoard: settings.analyse.smallBoard(),
-      boardPosition: settings.analyse.boardPosition(),
       showBestMove: settings.analyse.showBestMove(),
       showComments: settings.analyse.showComments(),
       flip: false,
@@ -71,9 +68,6 @@ export default {
         const newVal = !s.smallBoard
         settings.analyse.smallBoard(newVal)
         s.smallBoard = newVal
-      },
-      setBoardPosition(pos: '1' | '2') {
-        s.boardPosition = pos
       },
       toggleBestMove() {
         const newVal = !s.showBestMove
@@ -126,23 +120,10 @@ function renderAnalyseSettings(ctrl: AnalyseCtrl) {
 
   return h('div.analyseSettings', [
     h('div.action', {
-      key: 'boardPosition',
-    }, [
-      formWidgets.renderMultipleChoiceButton(
-        'Board position', [
-          { label: 'First', value: '1' },
-          { label: 'Second', value: '2' },
-        ],
-        settings.analyse.boardPosition,
-        false,
-        ctrl.settings.setBoardPosition
-      )
-    ]),
-    ctrl.ceval.allowed ? h('div.action', {
-      key: 'enableCeval'
+      className: !ctrl.ceval.allowed || !!ctrl.retro ? 'disabled' : ''
     }, [
       formWidgets.renderCheckbox(
-        i18n('enableLocalComputerEvaluation'), 'allowCeval', settings.analyse.enableCeval,
+        i18n('toggleLocalEvaluation'), 'allowCeval', settings.analyse.enableCeval,
         v => {
           ctrl.ceval.toggle()
           if (v) ctrl.initCeval()
@@ -155,51 +136,41 @@ function renderAnalyseSettings(ctrl: AnalyseCtrl) {
             }
           }
         },
-        !!ctrl.retro
+        !ctrl.ceval.allowed || !!ctrl.retro,
       ),
       h('small.caution', i18n('localEvalCaution'))
-    ]) : null,
-    ctrl.study || ctrl.ceval.allowed ? h('div.action', {
-      key: 'showBestMove'
-    }, [
+    ]),
+    ctrl.study || ctrl.ceval.allowed ? h('div.action', [
       formWidgets.renderCheckbox(
-        i18n('showBestMove'), 'showBestMove', settings.analyse.showBestMove,
+        i18n('bestMoveArrow'), 'showBestMove', settings.analyse.showBestMove,
         ctrl.settings.toggleBestMove
       )
     ]) : null,
-    ctrl.study || (ctrl.source === 'online' && isOnlineAnalyseData(ctrl.data) && gameApi.analysable(ctrl.data)) ? h('div.action', {
-      key: 'showComments'
-    }, [
+    ctrl.study || (ctrl.source === 'online' && isOnlineAnalyseData(ctrl.data) && gameApi.analysable(ctrl.data)) ? h('div.action', [
       formWidgets.renderCheckbox(
         i18n('keyShowOrHideComments'), 'showComments', settings.analyse.showComments,
         ctrl.settings.toggleComments
       )
     ]) : null,
-    ctrl.ceval.allowed ? h('div.action', {
-      key: 'infiniteAnalysis'
-    }, [
+    h('div.action', [
       formWidgets.renderCheckbox(
-        'Infinite analysis', 'ceval.infinite', settings.analyse.cevalInfinite,
-        ctrl.settings.cevalToggleInfinite
+        i18n('infiniteAnalysis'), 'ceval.infinite', settings.analyse.cevalInfinite,
+        ctrl.settings.cevalToggleInfinite,
+        !ctrl.ceval.allowed
       ),
-      cordova.platformId === 'android' ?
-        h('small.caution', 'It will stop after 10 minutes when in background') :
-        null
-    ]) : null,
-    ctrl.ceval.allowed ? h('div.action', {
-      key: 'cevalMultiPvs'
-    }, [
+    ]),
+    h('div.action', [
       formWidgets.renderSlider(
-        'Analysis lines', 'ceval.multipv', 1, 5, 1, settings.analyse.cevalMultiPvs,
-        ctrl.settings.cevalSetMultiPv
+        i18n('multipleLines'), 'ceval.multipv', 1, 5, 1, settings.analyse.cevalMultiPvs,
+        ctrl.settings.cevalSetMultiPv,
+        !ctrl.ceval.allowed
       )
-    ]) : null,
-    ctrl.ceval.allowed && cores > 1 ? h('div.action', {
-      key: 'cevalCores'
-    }, [
+    ]),
+    cores > 1 ? h('div.action', [
       formWidgets.renderSlider(
-        'Processor cores', 'ceval.cores', 1, cores, 1, settings.analyse.cevalCores,
-        ctrl.settings.cevalSetCores
+        i18n('cpus'), 'ceval.cores', 1, cores, 1, settings.analyse.cevalCores,
+        ctrl.settings.cevalSetCores,
+        !ctrl.ceval.allowed,
       )
     ]) : null
   ])

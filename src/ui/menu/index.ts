@@ -1,4 +1,4 @@
-import * as stream from 'mithril/stream'
+import stream from 'mithril/stream'
 import { hasNetwork } from '../../utils'
 import redraw from '../../utils/redraw'
 import router from '../../router'
@@ -43,10 +43,10 @@ export function route(route: string) {
   }
 }
 
-export function popup(action: () => void) {
+export function action(f: () => void) {
   return function() {
     return mainMenuCtrl.close().then(() => {
-      action()
+      f()
       redraw()
     })
   }
@@ -54,12 +54,14 @@ export function popup(action: () => void) {
 
 export function toggleHeader() {
   const open = !profileMenuOpen()
-  if (open) inboxXhr.unreadCount()
-  .then(nb => {
-    inboxUnreadCount(nb)
-    redraw()
-  })
-  return profileMenuOpen(open)
+  if (open) {
+    inboxXhr.unreadCount()
+    .then(nb => {
+      inboxUnreadCount(nb)
+      redraw()
+    })
+  }
+  profileMenuOpen(open)
 }
 
 export function getServerLags() {
@@ -76,6 +78,7 @@ export function getServerLags() {
   }
 }
 
-export const backdropCloseHandler = ontap(() => {
+export const backdropCloseHandler = ontap((e: TouchEvent) => {
+  e.stopPropagation()
   mainMenuCtrl.close()
 })

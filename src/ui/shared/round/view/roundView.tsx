@@ -1,5 +1,6 @@
-import * as h from 'mithril/hyperscript'
-import * as range from 'lodash/range'
+import * as Mithril from 'mithril'
+import { Plugins } from '@capacitor/core'
+import h from 'mithril/hyperscript'
 import redraw from '../../../../utils/redraw'
 import socket from '../../../../socket'
 import session from '../../../../session'
@@ -12,7 +13,7 @@ import { User } from '../../../../lichess/interfaces/user'
 import settings from '../../../../settings'
 import * as utils from '../../../../utils'
 import { emptyFen } from '../../../../utils/fen'
-import i18n from '../../../../i18n'
+import i18n, { plural } from '../../../../i18n'
 import layout from '../../../layout'
 import * as helper from '../../../helper'
 import { connectingHeader, backButton, menuButton, loader, headerBtns, bookmarkButton } from '../../../shared/common'
@@ -31,7 +32,6 @@ import CrazyPocket from '../crazy/CrazyPocket'
 import { view as renderCorrespondenceClock } from '../correspondenceClock/corresClockView'
 import { renderInlineReplay, renderReplay } from './replay'
 import OnlineRound from '../OnlineRound'
-import { hasSpaceForInlineReplay } from '../util'
 import { Position, Material } from '../'
 
 export default function view(ctrl: OnlineRound) {
@@ -40,13 +40,16 @@ export default function view(ctrl: OnlineRound) {
   return layout.board(
     renderHeader(ctrl),
     renderContent(ctrl, isPortrait),
-    overlay(ctrl)
+    overlay(ctrl),
+    undefined,
+    undefined,
+    'roundView'
   )
 }
 
 export function renderMaterial(material: Material) {
   const tomb = Object.keys(material.pieces).map((role: Role) =>
-    h('div.tomb', { key: role }, range(material.pieces[role])
+    h('div.tomb', Array.from(Array(material.pieces[role]).keys())
       .map(_ => h('piece', { className: role }))
     )
   )
@@ -61,20 +64,18 @@ export function renderMaterial(material: Material) {
 export function viewOnlyBoardContent(fen: string, orientation: Color, lastMove?: string, variant?: VariantKey, wrapperClass?: string, customPieceTheme?: string) {
   const isPortrait = helper.isPortrait()
   const vd = helper.viewportDim()
-  const orientKey = 'viewonlyboard' + (isPortrait ? 'portrait' : 'landscape')
-  const bounds = helper.getBoardBounds(vd, isPortrait)
   const className = 'board_wrapper' + (wrapperClass ? ' ' + wrapperClass : '')
   const board = (
     <section className={className}>
-      {h(ViewOnlyBoard, {bounds, fen, lastMove, orientation, variant, customPieceTheme})}
+      {h(ViewOnlyBoard, {fen, lastMove, orientation, variant, customPieceTheme})}
     </section>
   )
-  const showMoveList = hasSpaceForInlineReplay(vd, bounds) &&
+  const showMoveList = helper.hasSpaceForInlineReplay(vd, isPortrait) &&
     settings.game.moveList() &&
     !settings.game.zenMode()
 
   if (isPortrait) {
-    return h.fragment({ key: orientKey }, [
+    return h.fragment({}, [
       showMoveList ? h('div.replay_inline') : null,
       h('section.playTable'),
       board,
@@ -82,7 +83,7 @@ export function viewOnlyBoardContent(fen: string, orientation: Color, lastMove?:
       h('section.actions_bar'),
     ])
   } else {
-    return h.fragment({ key: orientKey}, [
+    return h.fragment({}, [
       board,
       h('section.table'),
     ])
@@ -137,23 +138,21 @@ function renderTitle(ctrl: OnlineRound) {
   if (ctrl.vm.offlineWatcher || socket.isConnected()) {
     const isCorres = !data.player.spectator && data.game.speed === 'correspondence'
     if (ctrl.data.tv) {
-      return h('div.main_header_title.withSub', {
-        key: 'tv'
-      }, [
-        h('h1.header-gameTitle', [h('span.withIcon[data-icon=1]'), 'Lichess TV']),
-        h('h2.header-subTitle', tvChannelSelector(ctrl))
+      return h('div.main_header_title.withSub', [
+        h('h1.header-gameTitle', [
+          tvChannelSelector(ctrl)
+        ]),
+        h('h2.header-subTitle', gameApi.title(ctrl.data)),
       ])
     }
     else if (ctrl.data.userTV) {
-      return h('div.main_header_title.withSub', {
-        key: 'user-tv'
-      }, [
+      return h('div.main_header_title.withSub', [
         h('h1.header-gameTitle', [
-          h(`span.withIcon[data-icon=${utils.gameIcon(ctrl.data.game.perf)}]`),
-          gameApi.title(ctrl.data)
+          h('span.withIcon[data-icon=1]'), ctrl.data.userTV,
         ]),
         h('h2.header-subTitle', [
-          h('span.withIcon[data-icon=1]'), ctrl.data.userTV,
+          h(`span.withIcon[data-icon=${utils.gameIcon(ctrl.data.game.perf)}]`),
+          gameApi.title(ctrl.data),
         ].concat(tournament ? [
           ' • ',
           h('span.fa.fa-trophy'),
@@ -163,7 +162,6 @@ function renderTitle(ctrl: OnlineRound) {
     }
     else {
       return h(GameTitle, {
-        key: 'playing-title',
         data: ctrl.data,
         kidMode: session.isKidMode(),
         subTitle: tournament ? 'tournament' : isCorres ? 'corres' : 'date'
@@ -171,7 +169,7 @@ function renderTitle(ctrl: OnlineRound) {
     }
   } else {
     return (
-      <div key="reconnecting-title" className="main_header_title reconnecting">
+      <div className="main_header_title reconnecting">
         {loader}
       </div>
     )
@@ -203,42 +201,41 @@ function renderHeader(ctrl: OnlineRound) {
 
 function renderContent(ctrl: OnlineRound, isPortrait: boolean) {
   const vd = helper.viewportDim()
-  const bounds = helper.getBoardBounds(vd, isPortrait)
 
   const material = ctrl.chessground.getMaterialDiff()
 
   const player = renderPlayTable(ctrl, ctrl.data.player, material[ctrl.data.player.color], 'player')
   const opponent = renderPlayTable(ctrl, ctrl.data.opponent, material[ctrl.data.opponent.color], 'opponent')
 
+  const playable = gameApi.playable(ctrl.data)
+  const myTurn = gameApi.isPlayerTurn(ctrl.data)
+
   const board = h(Board, {
     variant: ctrl.data.game.variant.key,
     chessground: ctrl.chessground,
-    bounds
-  })
-
-  const orientationKey = isPortrait ? 'o-portrait' : 'o-landscape'
-  const flip = !ctrl.data.tv && ctrl.vm.flip
+  }, playable ? [
+    !myTurn ? renderExpiration(ctrl, 'opponent', myTurn) : null,
+    myTurn ? renderExpiration(ctrl, 'player', myTurn) : null,
+  ] : [])
 
   if (isPortrait) {
-    return h.fragment({ key: orientationKey }, [
-      hasSpaceForInlineReplay(vd, bounds) ? renderInlineReplay(ctrl) : null,
-      flip ? player : opponent,
+    return [
+      helper.hasSpaceForInlineReplay(vd, isPortrait) ? renderInlineReplay(ctrl) : null,
+      opponent,
       board,
-      flip ? opponent : player,
+      player,
       renderGameActionsBar(ctrl)
-    ])
+    ]
   } else {
-    return h.fragment({ key: orientationKey }, [
+    return [
       board,
-      h('section.table',
-        h('section.playersTable', [
-          flip ? player : opponent,
-          renderReplay(ctrl),
-          flip ? opponent : player,
-        ]),
+      h('section.table', [
+        opponent,
+        renderReplay(ctrl),
         renderGameActionsBar(ctrl),
-      ),
-    ])
+        player,
+      ]),
+    ]
   }
 }
 
@@ -248,11 +245,11 @@ function renderExpiration(ctrl: OnlineRound, position: Position, myTurn: boolean
   const timeLeft = Math.max(0, d.movedAt - Date.now() + d.millisToMove)
 
   return h('div.round-expiration', {
-    className: position
+    className: position,
   }, h(CountdownTimer, {
       seconds: Math.round(timeLeft / 1000),
       emergTime: myTurn ? 8 : undefined,
-      textWrap: (t: string) => `<strong>${t}</strong> seconds to play the first move`,
+      textWrap: (sec: Seconds, t: string) => plural('nbSecondsToPlayTheFirstMove', sec, `<strong>${t}</<strong>`),
       showOnlySecs: true
     })
   )
@@ -283,9 +280,10 @@ function userInfos(user: User, player: Player, playerName: string) {
     let onlineStatus = user.online ? 'connected to lichess' : 'offline'
     let onGameStatus = player.onGame ? 'currently on this game' : 'currently not on this game'
     title = `${playerName}: ${onlineStatus}; ${onGameStatus}`
-  } else
+  } else {
     title = playerName
-  window.plugins.toast.show(title, 'short', 'center')
+  }
+  Plugins.LiToast.show({ text: title, duration: 'short' })
 }
 
 function renderAntagonistInfo(ctrl: OnlineRound, player: Player, material: Material, position: Position, isCrazy: boolean) {
@@ -294,7 +292,7 @@ function renderAntagonistInfo(ctrl: OnlineRound, player: Player, material: Mater
   const togglePopup = user ? () => ctrl.openUserPopup(position, user.id) : utils.noop
   const vConf = user ?
     helper.ontap(togglePopup, () => userInfos(user, player, playerName)) :
-    helper.ontap(utils.noop, () => window.plugins.toast.show(playerName, 'short', 'center'))
+    helper.ontap(utils.noop, () => Plugins.LiToast.show({ text: playerName, duration: 'short' }))
 
   const checksNb = getChecksCount(ctrl, player.color)
 
@@ -302,6 +300,8 @@ function renderAntagonistInfo(ctrl: OnlineRound, player: Player, material: Mater
 
   const tournamentRank = ctrl.data.tournament && ctrl.data.tournament.ranks ?
     '#' + ctrl.data.tournament.ranks[player.color] + ' ' : null
+
+  const isBerserk = ctrl.vm.goneBerserk[player.color]
 
   return (
     <div className={'antagonistInfos' + (isCrazy ? ' crazy' : '') + (ctrl.isZen() ? ' zen' : '')} oncreate={vConf}>
@@ -312,6 +312,7 @@ function renderAntagonistInfo(ctrl: OnlineRound, player: Player, material: Mater
           <span className={'fa fa-circle status ' + (player.onGame ? 'ongame' : 'offgame')} /> }
         {tournamentRank}
         {playerName}
+        { isBerserk ? <span className="berserk" data-icon="`" /> : null }
         { isCrazy && position === 'opponent' && user && (user.engine || user.booster) ?
           <span className="warning" data-icon="j"></span> : null
         }
@@ -338,7 +339,7 @@ function renderAntagonistInfo(ctrl: OnlineRound, player: Player, material: Mater
         h(Clock, {
           ctrl: ctrl.clock,
           color: player.color,
-          isBerserk: ctrl.vm.goneBerserk[player.color],
+          isBerserk,
           runningColor
         }) :
         isCrazy && ctrl.correspondenceClock ?
@@ -359,17 +360,16 @@ function renderPlayTable(
   const runningColor = ctrl.isClockRunning() ? ctrl.data.game.player : undefined
   const step = ctrl.plyStep(ctrl.vm.ply)
   const isCrazy = !!step.crazy
-  const playable = gameApi.playable(ctrl.data)
-  const myTurn = gameApi.isPlayerTurn(ctrl.data)
 
   const classN = helper.classSet({
     playTable: true,
     crazy: isCrazy,
     clockOnLeft: ctrl.vm.clockPosition === 'left',
+    flip: !ctrl.data.tv && ctrl.vm.flip,
   })
 
   return (
-    <section className={classN}>
+    <section className={classN + ' ' + position}>
       {renderAntagonistInfo(ctrl, player, material, position, isCrazy)}
       { !!step.crazy ?
         h(CrazyPocket, {
@@ -391,9 +391,6 @@ function renderPlayTable(
             ctrl.correspondenceClock, player.color, ctrl.data.game.player
           ) : null
       }
-      { playable && (myTurn && position === 'player' || !myTurn && position === 'opponent') ?
-        renderExpiration(ctrl, position, myTurn) : null
-      }
     </section>
   )
 }
@@ -401,6 +398,7 @@ function renderPlayTable(
 function tvChannelSelector(ctrl: OnlineRound) {
   const channels = perfApi.perfTypes.filter(e => e[0] !== 'correspondence').map(e => [e[1], e[0]])
   channels.unshift(['Top rated', 'best'])
+  channels.push(['Bot', 'bot'])
   channels.push(['Computer', 'computer'])
   const channel = settings.tv.channel() as PerfKey
   const icon = utils.gameIcon(channel)
@@ -409,7 +407,11 @@ function tvChannelSelector(ctrl: OnlineRound) {
     h('div.select_input.main_header-selector.round-tvChannelSelector', [
       h('label', {
         'for': 'channel_selector'
-      }, h(`i[data-icon=${icon}]`)),
+      }, [
+        h(`i[data-icon=${icon}]`),
+        h('span', h.trust('&nbsp;')),
+        h('span', 'Lichess TV')
+      ]),
       h('select#channel_selector', {
         value: channel,
         onchange(e: Event) {
@@ -428,54 +430,38 @@ function tvChannelSelector(ctrl: OnlineRound) {
 }
 
 function renderGameRunningActions(ctrl: OnlineRound) {
-  if (ctrl.data.player.spectator) {
-    let controls = [
-      gameButton.shareLink(ctrl),
+  return h('div.gameControls', {
+    key: 'gameRunningActions'
+  }, ctrl.data.player.spectator ? [
+    gameButton.shareLink(ctrl),
+  ] : [
+    gameButton.analysisBoard(ctrl),
+    gameButton.moretime(ctrl),
+    gameButton.standard(ctrl, gameApi.abortable, 'L', 'abortGame', 'abort'),
+  ].concat(
+    gameApi.forceResignable(ctrl.data) ? [gameButton.forceResign(ctrl)] : [
+      gameButton.standard(ctrl, gameApi.takebackable, 'i', 'proposeATakeback', 'takeback-yes'),
+      gameButton.cancelTakebackProposition(ctrl),
+      gameButton.offerDraw(ctrl),
+      gameButton.drawConfirmation(ctrl),
+      gameButton.cancelDrawOffer(ctrl),
+      gameButton.threefoldClaimDraw(ctrl),
+      gameButton.resign(ctrl),
+      gameButton.resignConfirmation(ctrl),
+      gameButton.goBerserk(ctrl),
+      gameButton.answerOpponentDrawOffer(ctrl),
+      gameButton.answerOpponentTakebackProposition(ctrl),
     ]
-
-    return <div className="game_controls">{controls}</div>
-  }
-
-  const answerButtons = [
-    gameButton.cancelDrawOffer(ctrl),
-    gameButton.answerOpponentDrawOffer(ctrl),
-    gameButton.cancelTakebackProposition(ctrl),
-    gameButton.answerOpponentTakebackProposition(ctrl)
-  ]
-
-  const gameControls = gameButton.forceResign(ctrl) || [
-    gameButton.standard(ctrl, gameApi.takebackable, 'i', 'proposeATakeback', 'takeback-yes'),
-    gameButton.standard(ctrl, ctrl.canOfferDraw, '2', 'offerDraw', 'draw-yes', ctrl.offerDraw),
-    gameButton.threefoldClaimDraw(ctrl),
-    gameButton.resign(ctrl),
-    gameButton.resignConfirmation(ctrl),
-    gameButton.goBerserk(ctrl)
-  ]
-
-  return (
-    <div className="game_controls">
-      {gameButton.analysisBoard(ctrl)}
-      {gameButton.moretime(ctrl)}
-      {gameButton.standard(ctrl, gameApi.abortable, 'L', 'abortGame', 'abort')}
-      {gameControls}
-      {answerButtons ? <div className="answers">{answerButtons}</div> : null}
-    </div>
-  )
+  ))
 }
 
 function renderGameEndedActions(ctrl: OnlineRound) {
-  const result = gameApi.result(ctrl.data)
-  const resultDom = gameStatusApi.aborted(ctrl.data) ? [] : [
-    h('strong', result), h('br')
-  ]
-  resultDom.push(h('em.resultStatus', ctrl.gameStatus()))
   let buttons: Mithril.Children
   const tournamentId = ctrl.data.game.tournamentId
 
   const shareActions = h('button', {
-    key: 'showShareActions',
     oncreate: helper.ontap(ctrl.showShareActions),
-  }, [h('span.fa.fa-share'), 'Share'])
+  }, [h('span.fa.fa-share'), i18n('shareAndExport')])
 
   if (ctrl.vm.showingShareActions) {
     buttons = [
@@ -516,20 +502,9 @@ function renderGameEndedActions(ctrl: OnlineRound) {
       ]
     }
   }
-  return (
-    <div className="game_controls">
-      <div className="control buttons">{buttons}</div>
-    </div>
-  )
-}
-
-function renderPopupTitle(ctrl: OnlineRound) {
-  return [
-    h('span.withIcon', {
-      'data-icon': utils.gameIcon(ctrl.data.game.perf)
-    }),
-    gameApi.title(ctrl.data)
-  ]
+  return h('div.game_controls', { key: 'gameEndedActions' }, h.fragment({
+    key: ctrl.vm.showingShareActions ? 'shareMenu' : 'menu'
+  }, buttons))
 }
 
 function renderStatus(ctrl: OnlineRound) {
@@ -543,10 +518,8 @@ function renderStatus(ctrl: OnlineRound) {
 }
 
 function renderGamePopup(ctrl: OnlineRound) {
-  const header = ctrl.data.tv ?
-    () => renderPopupTitle(ctrl) :
-    !gameApi.playable(ctrl.data) ?
-      () => renderStatus(ctrl) : undefined
+  const header = !gameApi.playable(ctrl.data) ?
+    () => renderStatus(ctrl) : undefined
 
   return popupWidget(
     'player_controls',
@@ -560,8 +533,8 @@ function renderGamePopup(ctrl: OnlineRound) {
 }
 
 function renderGameActionsBar(ctrl: OnlineRound) {
-  const answerRequired = ctrl.data.opponent.proposingTakeback ||
-    ctrl.data.opponent.offeringDraw ||
+  const answerRequired = ((ctrl.data.opponent.proposingTakeback ||
+    ctrl.data.opponent.offeringDraw) && !gameStatusApi.finished(ctrl.data)) ||
     gameApi.forceResignable(ctrl.data) ||
     ctrl.data.opponent.offeringRematch
 
@@ -570,7 +543,7 @@ function renderGameActionsBar(ctrl: OnlineRound) {
     'fa-mail-reply'
   ] : [
     'fa',
-    'fa-ellipsis-v'
+    'fa-list'
   ]).concat([
     'action_bar_button',
     answerRequired ? 'glow' : ''
@@ -578,14 +551,14 @@ function renderGameActionsBar(ctrl: OnlineRound) {
 
   const gmDataIcon = ctrl.data.opponent.offeringDraw ? '2' : null
   const gmButton = gmDataIcon ?
-    <button className={gmClass} data-icon={gmDataIcon} key="gameMenu" oncreate={helper.ontap(ctrl.showActions)} /> :
-    <button className={gmClass} key="gameMenu" oncreate={helper.ontap(ctrl.showActions)} />
+    <button className={gmClass} data-icon={gmDataIcon} oncreate={helper.ontap(ctrl.showActions)} /> :
+    <button className={gmClass} oncreate={helper.ontap(ctrl.showActions)} />
 
   return (
     <section className="actions_bar">
       {gmButton}
-      {ctrl.chat ?
-        <button className="action_bar_button fa fa-comments withChip" key="chat"
+      {ctrl.chat && !ctrl.isZen() ?
+        <button className="action_bar_button fa fa-comments withChip"
           oncreate={helper.ontap(ctrl.chat.open)}
         >
          { ctrl.chat.nbUnread > 0 ?

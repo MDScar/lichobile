@@ -1,9 +1,10 @@
+import { Plugins } from '@capacitor/core'
 import globalConfig from './config'
 import { fetchJSON, fetchText } from './http'
-import { currentSri, noop } from './utils'
+import { currentSri } from './utils'
 import storage from './storage'
 import settings from './settings'
-import i18n from './i18n'
+import i18n, { formatDate } from './i18n'
 import session from './session'
 import { TimelineData, LobbyData, HookData, Pool, HumanSeekSetup, CorrespondenceSeek, ApiStatus } from './lichess/interfaces'
 import { ChallengesData, Challenge } from './lichess/interfaces/challenge'
@@ -117,7 +118,11 @@ export function lobby(feedback?: boolean): Promise<LobbyData> {
 }
 
 export function seeks(feedback: boolean): Promise<CorrespondenceSeek[]> {
-  return fetchJSON('/lobby/seeks', undefined, feedback)
+  return fetchJSON('/lobby/seeks', {
+    query: {
+      _: Date.now()
+    }
+  }, feedback)
 }
 
 export function game(id: string, color?: string): Promise<OnlineGameData> {
@@ -162,25 +167,25 @@ export function timeline(): Promise<TimelineData> {
   return fetchJSON('/timeline', undefined, false)
 }
 
-export function status() {
+export function status(): Promise<void> {
+  const v = window.deviceInfo.appVersion || 'web-dev'
   return fetchJSON('/api/status', {
     query: {
-      v: window.AppVersion ? window.AppVersion.version : null
+      v
     }
   })
   .then((data: ApiStatus) => {
     // warn if buggy app
     if (data.mustUpgrade) {
-      const v = window.AppVersion ? window.AppVersion.version : 'dev'
       const key = 'warn_bug_' + v
       const warnCount = Number(storage.get(key)) || 0
       if (warnCount === 0) {
-        window.navigator.notification.alert(
-          'A new version of lichess mobile is available. Please upgrade as soon as possible.',
-          () => {
-            storage.set(key, 1)
-          }
-        )
+        Plugins.Modals.alert({
+          title: 'Alert',
+          message: 'A new version of lichess mobile is available. Please upgrade as soon as possible.',
+        }).then(() => {
+          storage.set(key, 1)
+        })
       }
       else if (warnCount === 10) {
         storage.remove(key)
@@ -200,19 +205,19 @@ export function status() {
         const deprWarnCount = Number(storage.get(key)) || 0
 
         if (now > unsupportedDate) {
-          window.navigator.notification.alert(
-            i18n('apiUnsupported'),
-            noop
-          )
+          Plugins.Modals.alert({
+            title: 'Alert',
+            message: i18n('apiUnsupported'),
+          })
         }
         else if (now > deprecatedDate) {
           if (deprWarnCount === 0) {
-            window.navigator.notification.alert(
-              i18n('apiDeprecated', window.moment(unsupportedDate).format('LL')),
-              () => {
-                storage.set(key, 1)
-              }
-            )
+            Plugins.Modals.alert({
+              title: 'Alert',
+              message: i18n('apiDeprecated', formatDate(unsupportedDate)),
+            }).then(() => {
+              storage.set(key, 1)
+            })
           }
           else if (deprWarnCount === 15) {
             storage.remove(key)
@@ -231,16 +236,20 @@ function createToken() {
 }
 
 export function openWebsiteAuthPage(path: string) {
-  const openAnon = () => {
-    window.open(`${globalConfig.apiEndPoint}${path}`, '_blank', 'location=yes')
-  }
-  if (session.isConnected()) {
+  const anonUrl = `${globalConfig.apiEndPoint}${path}`
+  // we use the Browser plugin to open authenticated pages because window.open
+  // doesn't work inside a promise
+  // we don't want to open a internal browser in kid mode since it is not
+  // protected like the device browser can be
+  if (session.isConnected() && !session.isKidMode()) {
     createToken()
     .then((data: {url: string}) => {
-      window.open(data.url + `?referrer=${encodeURIComponent(path)}`, '_blank', 'location=yes,zoom=no')
+      Plugins.Browser.open({ url: data.url + `?referrer=${encodeURIComponent(path)}` })
     })
-    .catch(openAnon)
+    .catch(() => {
+      Plugins.Browser.open({ url: anonUrl })
+    })
   } else {
-    openAnon()
+    window.open(anonUrl, '_blank')
   }
 }

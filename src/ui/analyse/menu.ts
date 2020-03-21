@@ -1,4 +1,5 @@
-import * as h from 'mithril/hyperscript'
+import { Plugins } from '@capacitor/core'
+import h from 'mithril/hyperscript'
 import router from '../../router'
 import i18n from '../../i18n'
 import session from '../../session'
@@ -22,6 +23,7 @@ export interface IMainMenuCtrl {
   s: {
     showShareMenu: boolean
     computingPGN: boolean
+    computingPGNAnnotated: boolean
   }
 }
 
@@ -43,7 +45,8 @@ export default {
 
     const s = {
       showShareMenu: false,
-      computingPGN: false
+      computingPGN: false,
+      computingPGNAnnotated: false,
     }
 
     return {
@@ -68,38 +71,29 @@ export default {
 
 function renderAnalyseMenu(ctrl: AnalyseCtrl) {
 
-  return h('div.analyseMenu', [
+  return h('div.analyseMenu', h.fragment({ key: 'analyseMenu' }, [
     h('button', {
-      key: 'share',
       oncreate: helper.ontap(() => {
         ctrl.menu.s.showShareMenu = true
       })
-    }, [h('span.fa.fa-share'), 'Share']),
-    h('button[data-icon=B]', {
-      key: 'flipBoard',
-      oncreate: helper.ontap(ctrl.settings.flip)
-    }, i18n('flipBoard')),
+    }, [h('span.fa.fa-share'), i18n('shareAndExport')]),
     ctrl.isOfflineOrNotPlayable() ? h('button[data-icon=U]', {
-      key: 'continueFromHere',
       oncreate: helper.ontap(() => {
         ctrl.menu.close()
         ctrl.continuePopup.open(ctrl.node.fen, ctrl.data.game.variant.key, ctrl.data.player.color)
       })
     }, i18n('continueFromHere')) : null,
     ctrl.isOfflineOrNotPlayable() ? h('button', {
-      key: 'boardEditor',
       oncreate: helper.ontap(() => router.set(`/editor/${encodeURIComponent(ctrl.node.fen)}`))
     }, [h('span.fa.fa-pencil'), i18n('boardEditor')]) : null,
     ctrl.data.analysis ? h('button', {
-      key: 'retro',
       oncreate: helper.ontap(() => {
         ctrl.menu.close()
         ctrl.toggleRetro()
       }),
       disabled: !!ctrl.retro
-    }, [h('span.fa.fa-play'), 'Learn from your mistakes']) : null,
+    }, [h('span.fa.fa-play'), i18n('learnFromYourMistakes')]) : null,
     ctrl.notes ? h('button', {
-      key: 'notes',
       oncreate: helper.ontap(() => {
         if (ctrl.notes) {
           ctrl.menu.close()
@@ -107,57 +101,56 @@ function renderAnalyseMenu(ctrl: AnalyseCtrl) {
         }
       })
     }, [h('span.fa.fa-pencil'), i18n('notes')]) : null
-  ])
+  ]))
 }
 
 function renderShareMenu(ctrl: AnalyseCtrl) {
-  return h('div.analyseMenu', [
+  return h('div.analyseMenu', h.fragment({ key: 'shareMenu' }, [
     isOnlineAnalyseData(ctrl.data) ? h('button', {
       oncreate: helper.ontap(() => {
         ctrl.menu.close()
-        window.plugins.socialsharing.share(null, null, null, gameApi.publicAnalyseUrl(ctrl.data))
+        Plugins.LiShare.share({ url: gameApi.publicAnalyseUrl(ctrl.data) })
       })
     }, [i18n('shareGameURL')]) : null,
     ctrl.source === 'offline' ? h('button', {
-      key: 'sharePGN',
       oncreate: helper.ontap(() => {
         offlinePgnExport(ctrl)
       }),
     }, ctrl.menu.s.computingPGN ? spinner.getVdom('monochrome') : [i18n('sharePGN')]) : null,
     ctrl.source === 'online' && !gameApi.playable(ctrl.data) ? h('button', {
-      key: 'shareAnnotatedPGN',
       oncreate: helper.ontap(() => {
         onlinePGNExport(ctrl, false)
       }),
-    }, ctrl.menu.s.computingPGN ? spinner.getVdom('monochrome') : 'Share annotated PGN') : null,
+    }, ctrl.menu.s.computingPGNAnnotated ? spinner.getVdom('monochrome') : 'Share annotated PGN') : null,
     ctrl.source === 'online' && !gameApi.playable(ctrl.data) ? h('button', {
-      key: 'shareRawPGN',
       oncreate: helper.ontap(() => {
         onlinePGNExport(ctrl, true)
       }),
     }, ctrl.menu.s.computingPGN ? spinner.getVdom('monochrome') : 'Share raw PGN') : null,
     ctrl.isOfflineOrNotPlayable() ? h('button', {
-      key: 'shareFEN',
       oncreate: helper.ontap(() => {
         ctrl.menu.close()
-        window.plugins.socialsharing.share(null, null, null, ctrl.node.fen)
+        Plugins.LiShare.share({ text: ctrl.node.fen })
       }),
     }, 'Share current FEN') : null,
-  ])
+  ]))
 }
 
 function onlinePGNExport(ctrl: AnalyseCtrl, raw: boolean) {
-  if (!ctrl.menu.s.computingPGN) {
-    ctrl.menu.s.computingPGN = true
+  if ((raw && !ctrl.menu.s.computingPGN) || (!raw && !ctrl.menu.s.computingPGNAnnotated)) {
+    if (raw) ctrl.menu.s.computingPGN = true
+    else ctrl.menu.s.computingPGNAnnotated = true
     getPGN(ctrl.data.game.id, raw)
     .then((pgn: string) => {
       ctrl.menu.s.computingPGN = false
+      ctrl.menu.s.computingPGNAnnotated = false
       ctrl.menu.close()
       redraw()
-      window.plugins.socialsharing.share(pgn)
+      Plugins.LiShare.share({ text: pgn })
     })
     .catch(e => {
       ctrl.menu.s.computingPGN = false
+      ctrl.menu.s.computingPGNAnnotated = false
       redraw()
       handleXhrError(e)
     })
@@ -185,7 +178,7 @@ function offlinePgnExport(ctrl: AnalyseCtrl) {
       ctrl.menu.s.computingPGN = false
       ctrl.menu.close()
       redraw()
-      window.plugins.socialsharing.share(res.pgn)
+      Plugins.LiShare.share({ text: res.pgn })
     })
     .catch(e => {
       ctrl.menu.s.computingPGN = false

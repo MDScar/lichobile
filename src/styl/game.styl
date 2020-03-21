@@ -1,3 +1,37 @@
+.content_round.roundView
+  @media only screen and (orientation: portrait)
+    > .replay_inline
+      order 1
+    > .playable_board_wrapper
+      order 3
+    > .playTable
+      &.player
+        order 4
+        &.flip
+          order 2
+      &.opponent
+        order 2
+        &.flip
+          order 4
+    > .actions_bar
+      order 5
+  @media only screen and (orientation: landscape)
+    > .table
+      > .replay
+        order 2
+      > .actions_bar
+        order 3
+      > .playTable
+        &.opponent
+          order 1
+          &.flip
+            order 4
+        &.player
+          order 4
+          &.flip
+            order 1
+
+
 .header-gameTitle
   width 100%
   overflow hidden
@@ -18,30 +52,9 @@
     padding 0 0.5em
     font-size 0.8em
 
-.playTable
-  position relative
-  flex 1 1 auto
-  display flex
-  overflow hidden
-  justify-content space-between
-  align-items center
-  &.clockOnLeft
-    > .antagonistInfos
-      order 2
-  @media only screen and (orientation: portrait) and (aspect-ratio 3/4), (orientation: portrait) and (device-aspect-ratio 3/4)
-    width 98vw
-    margin 0 auto
-  @media only screen and (orientation: landscape)
-    padding 0
-    &.crazy
-      > .antagonistInfos
-        order 2
-      > .pocket
-        flex 0 0 auto
-        order 1
-
 .round-expiration
-  position: absolute;
+  position: absolute
+  pointer-events none
   left: 0
   width: 100%
   text-align: center
@@ -49,9 +62,9 @@
   color: #fff
   z-index: 50
   &.player
-    top: 0
-  &.opponent
     bottom 0
+  &.opponent
+    top: 0
   > .countdown-timer
     padding: 5px
     font-weight normal
@@ -66,6 +79,7 @@
       background: rgba(#dc322f, 0.8)
 
 .replay_inline
+  background headerBgDark
   flex 0 0 30px
   overflow hidden
   overflow-x auto
@@ -79,9 +93,8 @@
   min-height 0 // fix chrome 73 regression
   flex 1 1 auto
   overflow hidden
-  background lighten(bgdark, 3%)
   overflow-y auto
-  -webkit-overflow-scrolling touch
+  padding 0.2em
   @media only screen and (orientation: portrait)
     margin .5em
 
@@ -106,6 +119,46 @@
   color green
 .rp.down
   color red
+
+.playTable
+  position relative
+  flex 1 1 auto
+  display flex
+  overflow hidden
+  justify-content space-between
+  align-items center
+  &.clockOnLeft
+    > .antagonistInfos
+      order 2
+  @media only screen and (orientation: portrait) and (min-width 768px) and (min-height 768px)
+    width 94vw
+    margin 0 auto
+  @media only screen and (orientation: landscape)
+    flex 0 0 calc(30px + 2vmax + 1em)
+    padding 0.5em 0
+    &.crazy
+      > .antagonistInfos
+        order 2
+      > .pocket
+        flex 0 0 auto
+        order 1
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    flex 0 0 calc(35px + 2vmax + 1em)
+    padding 1em 0
+    &:first-child
+      padding-top 0
+      > .pocket
+        align-self flex-start
+    &:last-child
+      padding-bottom 0
+      > .pocket
+        align-self flex-end
+      > .antagonistInfos.crazy
+        order 1
+        padding-top 0
+    &.crazy
+      flex 0 0 calc(((100vw - var(--board-side-land-tablet) - 9vh) / 5) + 30px + 2vmax + 3em)
+      flex-flow row wrap
 
 .antagonistInfos
   display flex
@@ -151,17 +204,31 @@
       margin-top 0.1em
       &.correspondence
         font-size 13px
-  @media only screen and (min-width 600px)
-    &.crazy
-      > .antagonistUser
-        font-size 1em
   @media only screen and (orientation landscape)
+    padding 0
+  @media only screen and (orientation landscape) and (max-width 767px) and (max-height 767px)
     &.crazy
       > .antagonistUser
         font-size 0.7em
       > .clock
         line-height 20px
         fluid-type(16px, 26px)
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    &.crazy
+      flex 1 1 auto
+      display flex
+      overflow hidden
+      justify-content space-between
+      align-items center
+      flex-flow row nowrap
+      padding 1em 0
+      > .clock
+        padding 1vmax 2vmin
+        margin-top 0
+      &:last-child
+        padding-bottom 0
+      > .antagonistUser
+        font-size 1em
 
 .antagonistUser
   overflow hidden
@@ -169,6 +236,10 @@
   font-size 1.2em
   white-space nowrap
   color textLightGray
+  > .berserk
+    margin-left 0.5em
+    &::before
+      vertical-align middle
   > h2
     overflow hidden
     text-overflow ellipsis
@@ -215,8 +286,8 @@
     letter-spacing -0.05em
     &.offline
       color #8c8c8c
-  @media only screen and (min-width: 600px)
-    font-size 35px
+  @media only screen and (orientation landscape)
+    fluid-type(20px, 35px)
 
 .checkCount
   font-size 0.8em
@@ -231,6 +302,8 @@
     height 18px
     background-size cover
     display inline-block
+    @media only screen and (min-width 768px) and (min-height 768px)
+      margin-top 2px
   .pawn
     background-image url(../../images/pieces/mono/P.svg)
   .bishop
@@ -243,10 +316,6 @@
     background-image url(../../images/pieces/mono/Q.svg)
   .king
     background-image url(../../images/pieces/mono/K.svg)
-  @media only screen and (min-width 960px) and (orientation landscape)
-    piece
-      width 25px
-      height 25px
 
 #promotion_choice
   border 1px solid black
@@ -306,15 +375,13 @@
     &.on
       background-color darken(#fff, 15%)
   .negotiation, .force_resign_zone, .claim_draw_zone
-    background-color selectBg
+    background-color lighten(modalDarkBg, 10%)
     text-align center
     padding 10px
     button
-      background-color #fff
-      &.active
-        background-color darken(#fff, 3%)
-      &.binary_choice[data-icon=E]
-        border-right 1px solid selectBg
+      &[data-icon=L]
+        &:before
+          color red
       &:not(.binary_choice):last-child
         width 50%
         margin 0 auto
@@ -357,7 +424,7 @@
         &.active
           background lighten(red, 10%)
 
-.player_controls, .offline_actions, .playersTable
+.player_controls, .offline_actions
   .result
     padding 0 10px
     text-align center
@@ -376,7 +443,7 @@
       left initial
       right 1vw
       width 'calc(100vw - 100vh + %s - 2vw)' % headerHeight
-    @media only screen and (orientation: landscape) and (aspect-ratio 4/3), (orientation: landscape) and (device-aspect-ratio 4/3), (orientation landscape) and (device-aspect-ratio 3/4)
+    @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
       width 'calc(100vw - 100vh + %s + 12vh - 2vw)' % headerHeight
     // tablets
     @media only screen and (orientation portrait) and (min-width 500px)
@@ -449,11 +516,16 @@
       right 3px
       bottom 3px
   @media only screen and (orientation: landscape)
-    width 'calc((100vh - %s) / 8)' % headerHeight
-    height 'calc((100vh - %s) / 8)' % headerHeight
+    width calc(var(--board-side-land) / 8)
+    height calc(var(--board-side-land) / 8)
     max-width 60px
     max-height 60px
-  @media only screen and (orientation: portrait) and (aspect-ratio 3/4), (orientation: portrait) and (device-aspect-ratio 3/4)
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    width calc((100vw - var(--board-side-land-tablet) - 9vh) / 5)
+    height calc((100vw - var(--board-side-land-tablet) - 9vh) / 5)
+    max-width 120px
+    max-height 120px
+  @media only screen and (orientation: portrait) and (min-width 768px) and (min-height 768px)
     width "calc((100vh - 100vw - 25px - %s - %s) / 2)" % (headerHeight footerHeight)
     height "calc((100vh - 100vw - 25px - %s - %s) / 2)" % (headerHeight footerHeight)
 
@@ -462,18 +534,28 @@
   &:after
     content none
 
+.action_bar_button
+  &[data-icon='2']:before
+    display inline-block
+    transform rotate(-90deg)
+
+.main_header-selector.round-tvChannelSelector
+  height initial
+  line-height initial
+  font-size 0.9em
+  > select
+    line-height initial
+    color transparent
+
 .view-container.light
   .antagonistUser
     color textDarkGray
   .clock
     color lighten(themeBgLightText, 5%)
     background-color themeBgLight
-    border-color #ccc
     &.running
       background-color palerGreen
       color #000
-    &.berserk
-      border-color #dc322f
     &.emerg
       background-color #f2cccc
       &.running
@@ -483,7 +565,20 @@
       &.offline
         background-color themeBgLight
         color #707070
-
+  .main_header-selector.round-tvChannelSelector
+    background-color inherit
+  .player_controls
+    button
+      &.on
+        background-color darken(#fff, 15%)
+    .negotiation, .force_resign_zone, .claim_draw_zone
+      background-color selectBg
+      button
+        background-color #fff
+        &.active
+          background-color darken(#fff, 3%)
+        &.binary_choice[data-icon=E]
+          border-right 1px solid selectBg
 
 .view-container.transp
   .pocket
@@ -500,11 +595,8 @@
         color #fff
   .replay
     background transpBlack04
-
-.action_bar_button
-  &[data-icon='2']:before
-    display inline-block
-    transform rotate(-90deg)
-
-.round-tvChannelSelector
-  font-size 1em
+  .antagonistInfos
+    text-shadow 0 1px 1px rgba(0,0,0,0.5)
+  .player_controls
+    .negotiation, .force_resign_zone, .claim_draw_zone
+      background-color transpWhite015

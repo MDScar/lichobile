@@ -1,8 +1,9 @@
-import * as h from 'mithril/hyperscript'
+import * as Mithril from 'mithril'
+import h from 'mithril/hyperscript'
 
 import i18n from '../../i18n'
 import redraw from '../../utils/redraw'
-import { StoredProp } from '../../storage'
+import { Prop } from '../../settings'
 import { LichessPropOption } from '../../lichess/prefs'
 import * as helper from '../helper'
 
@@ -39,7 +40,7 @@ export default {
     label: string,
     name: string,
     options: ReadonlyArray<SelectOption>,
-    settingsProp: StoredProp<string>,
+    settingsProp: Prop<string>,
     isDisabled?: boolean,
     onChangeCallback?: (v: string) => void
   ) {
@@ -65,7 +66,7 @@ export default {
     label: string,
     name: string,
     options: ReadonlyArray<LichessPropOption>,
-    settingsProp: StoredProp<number>,
+    settingsProp: Prop<number>,
     isDisabled?: boolean
   ) {
     const prop = settingsProp()
@@ -87,7 +88,7 @@ export default {
   renderCheckbox(
     label: Mithril.Children,
     name: string,
-    settingsProp: StoredProp<boolean>,
+    settingsProp: Prop<boolean>,
     callback?: (v: boolean) => void,
     disabled?: boolean
   ) {
@@ -103,7 +104,7 @@ export default {
         name: name,
         disabled,
         checked: isOn,
-        onchange: function() {
+        onchange: () => {
           const newVal = !isOn
           settingsProp(newVal)
           if (callback) callback(newVal)
@@ -116,7 +117,7 @@ export default {
   renderMultipleChoiceButton<T>(
     label: string,
     options: ReadonlyArray<{ label: string, value: T }>,
-    prop: StoredProp<T>,
+    prop: Prop<T>,
     wrap: boolean = false,
     callback?: (v: T) => void,
   ) {
@@ -151,15 +152,19 @@ export default {
     min: number,
     max: number,
     step: number,
-    prop: StoredProp<number>,
-    onChange: (v: number) => void
+    prop: Prop<number>,
+    onChange: (v: number) => void,
+    disabled?: boolean,
   ) {
     const value = prop()
-    return h('div.forms-rangeSlider', [
+    return h('div.forms-rangeSlider', {
+      className: disabled ? 'disabled' : ''
+    }, [
       h('label', { 'for': name }, label),
       h('input[type=range]', {
         id: name,
         value,
+        disabled,
         min,
         max,
         step,

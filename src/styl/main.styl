@@ -10,16 +10,11 @@ body
 
 .view-container
   position absolute
-  display block
   overflow hidden
   top: 0
   bottom: 0
   left: 0
   right: 0
-  &.ios
-    // fixes keyboard bug
-    // https://github.com/apache/cordova-ios/issues/472
-    position fixed
   // iphone X safe area
   // safe raw values, for reference:
   // landscape: top=0, right=44, bottom=21, left=44
@@ -30,19 +25,17 @@ body
     right env(safe-area-inset-right)
 
 main
-  position absolute
   height 100%
   width 100%
   background bgdark
   color textDarkBg
-  overflow hidden
-  display flex
-  flex-flow column nowrap
 
 .main_header
-  position relative
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
   background headerBgDark
-  flex 0 0 headerHeight
+  width 100%
+  height 'calc(%s + env(safe-area-inset-top))' % headerHeight
   color headerBgDarkColor
   > nav
     height 100%
@@ -87,6 +80,8 @@ main
     &:after
       content ''
     > i
+      position relative
+      top 2px
       color gold
 
 .main_header_drop_shadow
@@ -244,11 +239,16 @@ main
 
 .content
   width 100%
-  flex 1 1 auto
+  height var(--content-height)
   display flex
   flex-flow column nowrap
+  &.withFooter
+    height 'calc(var(--content-height) - %s - env(safe-area-inset-bottom))' % footerHeight
   &.fullScreen
     height 100%
+  @media only screen and (orientation portrait) and (min-width 768px) and (min-height 768px)
+    &.withFooter
+      height 'calc(var(--content-height) - %s - env(safe-area-inset-bottom))' % footerHeightBigScreens
 
 .main_footer
   flex 0 0 footerHeight
@@ -257,3 +257,5 @@ main
   // iphone X support
   margin-bottom: constant(safe-area-inset-bottom);
   margin-bottom: env(safe-area-inset-bottom);
+  @media only screen and (orientation portrait) and (min-width 768px) and (min-height 768px)
+    flex 0 0 footerHeightBigScreens

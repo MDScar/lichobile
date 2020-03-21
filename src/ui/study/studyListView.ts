@@ -1,7 +1,9 @@
-import * as h from 'mithril/hyperscript'
-import * as throttle from 'lodash/throttle'
-import * as debounce from 'lodash/debounce'
+import * as Mithril from 'mithril'
+import h from 'mithril/hyperscript'
+import throttle from 'lodash-es/throttle'
+import debounce from 'lodash-es/debounce'
 import redraw from '../../utils/redraw'
+import i18n from '../../i18n'
 import spinner from '../../spinner'
 import * as playerApi from '../../lichess/player'
 import { PagerCategory, PagerOrder } from '../../lichess/interfaces/study'
@@ -34,7 +36,7 @@ export default function studyListView(ctrl: StudyListCtrl) {
               oncreate: helper.ontap(ctrl.cancelSearch)
             }, closeIcon) : null,
           ]),
-          h('button', 'Search'),
+          h('button', i18n('search')),
         ]) :
         h('div.study-pagerSelectWrapper', [
           h('div.categories',
@@ -69,25 +71,25 @@ export default function studyListView(ctrl: StudyListCtrl) {
 }
 
 const categories: ReadonlyArray<[PagerCategory, string]> = [
-  ['all', 'All studies'],
-  ['mine', 'My studies'],
-  ['member', 'Studies I contribute to'],
-  ['public', 'My public studies'],
-  ['private', 'My private studies'],
-  ['likes', 'Favourite studies'],
+  ['all', i18n('allStudies')],
+  ['mine', i18n('myStudies')],
+  ['member', i18n('studiesIContributeTo')],
+  ['public', i18n('myPublicStudies')],
+  ['private', i18n('myPrivateStudies')],
+  ['likes', i18n('myFavoriteStudies')],
 ]
 
 const orders: ReadonlyArray<[PagerOrder, string]> = [
-  ['hot', 'Hot'],
-  ['newest', 'Date added (newest)'],
-  ['updated', 'Recently updated'],
-  ['popular', 'Most popular'],
+  ['hot', i18n('hot')],
+  ['newest', i18n('dateAddedNewest')],
+  ['updated', i18n('recentlyUpdated')],
+  ['popular', i18n('mostPopular')],
 ]
 
 function studyList(ctrl: StudyListCtrl) {
   const studies = ctrl.state ? ctrl.state.studies : []
 
-  return h('div#scroller-wrapper.native_scroller.study-pagerScroller', {
+  return h('div#scroller-wrapper.native_scroller.study-pagerScroller.box', {
     onscroll: throttle(ctrl.onScroll, 30),
     oncreate: helper.ontapY(e => onTap(ctrl, e!), undefined, helper.getByClass('study-pagerItem'))
   },
@@ -97,7 +99,7 @@ function studyList(ctrl: StudyListCtrl) {
           oncreate: ctrl.afterLoad,
         }, [...studies.map((study, index) =>
           h(Item, { study, index })
-        ), ctrl.state.isLoading ? h('li.study-pagerItem', 'loading...') : []]) :
+        ), ctrl.state.isLoading ? h('li.list_item.study-pagerItem', 'loading...') : []]) :
           h('div.study-pagerEmpty', 'None yet') :
     h('div.study-pagerLoader', spinner.getVdom('monochrome'))
   )
@@ -119,7 +121,7 @@ const Item = {
     const { study, index } = attrs
     const ownerName = study.owner ? playerApi.lightPlayerName(study.owner) : '?'
 
-    return h('li.study-pagerItem', {
+    return h('li.list_item.study-pagerItem', {
       className: index % 2 === 0 ? 'even' : 'odd',
       'data-id': study.id
     }, [

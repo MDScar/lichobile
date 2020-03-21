@@ -1,4 +1,5 @@
-import * as h from 'mithril/hyperscript'
+import { Plugins } from '@capacitor/core'
+import h from 'mithril/hyperscript'
 import router from '../../../router'
 import session from '../../../session'
 import i18n from '../../../i18n'
@@ -7,7 +8,7 @@ import { Opening } from '../../../lichess/interfaces/game'
 import { formatTournamentDuration, formatTournamentTimeControl } from '../../../utils'
 import * as helper from '../../helper'
 import settings from '../../../settings'
-import miniBoard from '../../shared/miniBoard'
+import MiniBoard from '../../shared/miniBoard'
 import CountdownTimer from '../../shared/CountdownTimer'
 
 import faq from '../faq'
@@ -31,7 +32,9 @@ export function tournamentBody(ctrl: TournamentCtrl) {
   const data = ctrl.tournament
   if (!data) return null
 
-  return h('div.tournamentContainer.native_scroller.page', [
+  return h('div.tournamentContainer.native_scroller.page', {
+    className: data.podium ? 'finished' : '',
+  }, [
     tournamentHeader(data, ctrl),
     data.podium ? tournamentPodium(data.podium) : null,
     tournamentLeaderboard(ctrl),
@@ -46,11 +49,11 @@ export function renderFooter(ctrl: TournamentCtrl) {
 
   return (
     <div className="actions_bar">
-      <button key="faq" className="action_bar_button" oncreate={helper.ontap(ctrl.faqCtrl.open)}>
+      <button className="action_bar_button" oncreate={helper.ontap(ctrl.faqCtrl.open)}>
         <span className="fa fa-question-circle" />
         FAQ
       </button>
-      <button key="share" className="action_bar_button" oncreate={helper.ontap(() => window.plugins.socialsharing.share(tUrl))}>
+      <button className="action_bar_button" oncreate={helper.ontap(() => Plugins.LiShare.share({ url: tUrl }))}>
         <span className="fa fa-share-alt" />
         Share
       </button>
@@ -59,18 +62,18 @@ export function renderFooter(ctrl: TournamentCtrl) {
   )
 }
 
-export function timeInfo(key: string, seconds?: number, preceedingText?: string) {
+export function timeInfo(seconds?: number, preceedingText?: string) {
   if (seconds === undefined) return null
 
   return [
     preceedingText ? (preceedingText + ' ') : null,
-    h(CountdownTimer, { key, seconds })
+    h(CountdownTimer, { seconds })
   ]
 }
 
 function tournamentHeader(data: Tournament, ctrl: TournamentCtrl) {
   return (
-    <div key="header" className="tournamentHeader">
+    <div className="tournamentHeader">
       {tournamentTimeInfo(data)}
       {data.spotlight ? tournamentSpotlightInfo(data.spotlight) : null}
       {tournamentCreatorInfo(data, ctrl.startsAt!)}
@@ -105,7 +108,7 @@ function tournamentPositionInfo(position: Opening) {
   return (
     <div className={'tournamentPositionInfo' + (position.wikiPath ? ' withLink' : '')}
       oncreate={helper.ontapY(() => position && position.wikiPath &&
-        window.open(`https://en.wikipedia.org/wiki/${position.wikiPath}`)
+        window.open(`https://en.wikipedia.org/wiki/${position.wikiPath}`, '_blank')
       )}
     >
       {position.eco + ' ' + position.name}
@@ -156,7 +159,7 @@ function joinButton(ctrl: TournamentCtrl, t: Tournament) {
     () => ctrl.join()
 
   return (
-    <button key="join" className="action_bar_button" oncreate={helper.ontap(action)}>
+    <button className="action_bar_button" oncreate={helper.ontap(action)}>
       <span className="fa fa-play" />
       {i18n('join')}
     </button>
@@ -168,7 +171,7 @@ function withdrawButton(ctrl: TournamentCtrl, t: Tournament) {
     return null
   }
   return (
-    <button key="withdraw" className="action_bar_button" oncreate={helper.ontap(ctrl.withdraw)}>
+    <button className="action_bar_button" oncreate={helper.ontap(ctrl.withdraw)}>
       <span className="fa fa-flag" />
       {i18n('withdraw')}
     </button>
@@ -200,16 +203,13 @@ function tournamentLeaderboard(ctrl: TournamentCtrl) {
   const userName = user ? user.username : ''
 
   return (
-    <div key="leaderboard" className="tournamentLeaderboard">
-      { data.nbPlayers > 0 ?
-        <p className="tournamentTitle"> {i18n('leaderboard')} ({i18n('nbConnectedPlayers', data.nbPlayers)})</p> : null
-      }
+    <div className="tournamentLeaderboard">
 
       <ul
-        className={'tournamentStandings' + (ctrl.isLoadingPage ? ' loading' : '')}
+        className={'tournamentStandings box' + (ctrl.isLoadingPage ? ' loading' : '')}
         oncreate={helper.ontap(e => handlePlayerInfoTap(ctrl, e!), undefined, undefined, getLeaderboardItemEl)}
       >
-        {players.map(p => renderPlayerEntry(userName, p))}
+        {players.map((p, i) => renderPlayerEntry(userName, p, i))}
       </ul>
       <div className={'navigationButtons' + (players.length < 1 ? ' invisible' : '')}>
         {renderNavButton('W', !ctrl.isLoadingPage && backEnabled, ctrl.first)}
@@ -238,10 +238,11 @@ function renderNavButton(icon: string, isEnabled: boolean, action: () => void) {
   })
 }
 
-function renderPlayerEntry(userName: string, player: StandingPlayer) {
+function renderPlayerEntry(userName: string, player: StandingPlayer, i: number) {
+  const evenOrOdd = i % 2 === 0 ? 'even' : 'odd'
   const isMe = player.name === userName
   return (
-    <li key={player.name} data-player={player.name} className={'list_item tournament-list-player' + (isMe ? ' tournament-me' : '')} >
+    <li key={player.name} data-player={player.name} className={`list_item tournament-list-player ${evenOrOdd}` + (isMe ? ' tournament-me' : '')} >
       <div className="tournamentPlayer">
         <span className="flagRank" data-icon={player.withdraw ? 'b' : ''}> {player.withdraw ? '' : (player.rank + '. ')} </span>
         <span> {player.name + ' (' + player.rating + ') '} </span>
@@ -260,15 +261,14 @@ function tournamentFeaturedGame(ctrl: TournamentCtrl) {
 
   return (
     <div className="tournamentGames">
-      <div key={featured.id} className="tournamentMiniBoard">
-        {h(miniBoard, {
+      <div className="tournamentMiniBoard">
+        {h(MiniBoard, {
           fixed: false,
           fen: featured.fen,
           lastMove: featured.lastMove,
           orientation: featured.color,
           link: () => router.set(`/tournament/${data.id}/game/${featured.id}?color=${featured.color}&goingBack=1`),
           gameObj: featured,
-          delay: 800,
         })}
       </div>
     </div>
@@ -277,7 +277,7 @@ function tournamentFeaturedGame(ctrl: TournamentCtrl) {
 
 function tournamentPodium(podium: ReadonlyArray<PodiumPlace>) {
   return (
-    <div key="podium" className="podium">
+    <div className="podium">
       { renderPlace(podium[1]) }
       { renderPlace(podium[0]) }
       { renderPlace(podium[2]) }
@@ -300,6 +300,14 @@ function renderPlace(data: PodiumPlace) {
       <table className="stats">
         <tr>
           <td className="statName">
+            {i18n('performance')}
+          </td>
+          <td className="statData">
+            {data.performance}
+          </td>
+        </tr>
+        <tr>
+          <td className="statName">
             {i18n('gamesPlayed')}
           </td>
           <td className="statData">
@@ -308,7 +316,7 @@ function renderPlace(data: PodiumPlace) {
         </tr>
         <tr>
           <td className="statName">
-            Win Rate
+            {i18n('winRate')}
           </td>
           <td className="statData">
             {((data.nb.win / data.nb.game) * 100).toFixed(0) + '%'}
@@ -316,18 +324,10 @@ function renderPlace(data: PodiumPlace) {
         </tr>
         <tr>
           <td className="statName">
-            Berserk Rate
+            {i18n('berserkRate')}
           </td>
           <td className="statData">
             {((data.nb.berserk / data.nb.game) * 100).toFixed(0) + '%'}
-          </td>
-        </tr>
-        <tr>
-          <td className="statName">
-            Performance
-          </td>
-          <td className="statData">
-            {data.performance}
           </td>
         </tr>
       </table>

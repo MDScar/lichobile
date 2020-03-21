@@ -1,3 +1,4 @@
+import { Plugins } from '@capacitor/core'
 import i18n from '../../i18n'
 import Chessground from '../../chessground/Chessground'
 import router from '../../router'
@@ -45,7 +46,7 @@ export default class AiRound implements AiRoundInterface, PromotingInterface {
   public engine: EngineInterface
 
   public constructor(
-    saved?: StoredOfflineGame | null,
+    saved: StoredOfflineGame | null,
     setupFen?: string,
     setupVariant?: VariantKey,
     setupColor?: Color
@@ -72,6 +73,8 @@ export default class AiRound implements AiRoundInterface, PromotingInterface {
       if (setupVariant) {
         settings.ai.variant(setupVariant)
       }
+
+      redraw()
     }
 
     this.engine.init()
@@ -173,7 +176,7 @@ export default class AiRound implements AiRoundInterface, PromotingInterface {
   public sharePGN = () => {
     this.replay.pgn(this.white(), this.black())
     .then((data: chess.PgnDumpResponse) =>
-      window.plugins.socialsharing.share(data.pgn)
+      Plugins.LiShare.share({ text: data.pgn })
     )
   }
 

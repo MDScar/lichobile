@@ -1,6 +1,6 @@
-import * as cloneDeep from 'lodash/cloneDeep'
-import * as debounce from 'lodash/debounce'
-import * as throttle from 'lodash/throttle'
+import { Plugins } from '@capacitor/core'
+import debounce from 'lodash-es/debounce'
+import throttle from 'lodash-es/throttle'
 import Chessground from '../../chessground/Chessground'
 import { build as makeTree, ops as treeOps, path as treePath, TreeWrapper, Tree } from '../shared/tree'
 import router from '../../router'
@@ -208,13 +208,13 @@ export default class TrainingCtrl implements PromotingInterface {
   }
 
   public share = () => {
-    window.plugins.socialsharing.share(null, null, null, `https://lichess.org/training/${this.data.puzzle.id}`)
+    Plugins.LiShare.share({ url: `https://lichess.org/training/${this.data.puzzle.id}` })
   }
 
   public goToAnalysis = () => {
     const puzzle = this.data.puzzle
     if (hasNetwork()) {
-      router.set(`/analyse/online/${puzzle.gameId}/${puzzle.color}?ply=${puzzle.initialPly}&curFen=${puzzle.fen}&color=${puzzle.color}`)
+      router.set(`/analyse/online/${puzzle.gameId}/${puzzle.color}?ply=${puzzle.initialPly}&curFen=${this.initialNode.fen}&color=${puzzle.color}&fallback=1`)
     } else {
       router.set(`/analyse/variant/standard/fen/${encodeURIComponent(this.initialNode.fen)}?color=${puzzle.color}&goBack=1`)
     }
@@ -248,7 +248,7 @@ export default class TrainingCtrl implements PromotingInterface {
       })
     }
 
-    const data = cloneDeep(cfg)
+    const data = JSON.parse(JSON.stringify(cfg))
     const variant = {
       key: 'standard' as VariantKey
     }

@@ -141,10 +141,7 @@ h3.fullname
   padding 10px 0
   flex-flow row nowrap
   align-items center
-  background-color bgdark
   min-height 60px
-  &.even
-    background-color lighten(bgdark, 2%)
   > .display_board
     margin-left 10px
     flex 0 0 30%
@@ -165,20 +162,17 @@ h3.fullname
     > .display_board
       flex 0 0 150px
       height 150px
-  @media only screen and (orientation landscape) and (min-height 700px), only screen and (orientation portrait) and (min-width 600px)
+  @media only screen and (min-width 768px) and (min-height 768px)
     > .display_board
       flex 0 0 210px
       height 210px
-    .userGame-infos
-      font-size 1.1em
-      line-height 2em
     .userGame-meta
       font-size 1em
     .userGame-versus
       > .variant-icon
         font-size 1.8em
     .userGame-players
-      font-size 1.3em
+      font-size 1.1em
       > .swords
         font-size 38px
         width 60px
@@ -386,10 +380,6 @@ td.variantPerfMemo
     color rgba(textLightBg, 0.7)
 
 .view-container.transp
-  .userGame
-    background transpBlack02
-    &.even
-      background transpWhite01
 
   .userGame-meta, .userGame-players > .swords
     color rgba(textTransp, 0.7)

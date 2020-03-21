@@ -1,19 +1,19 @@
-import * as h from 'mithril/hyperscript'
+import * as Mithril from 'mithril'
+import h from 'mithril/hyperscript'
 import router from '../../../router'
 import i18n from '../../../i18n'
 import settings from '../../../settings'
 import * as utils from '../../../utils'
 import { emptyFen } from '../../../utils/fen'
 import continuePopup from '../../shared/continuePopup'
+import { isTablet } from '../../helper'
 import spinner from '../../../spinner'
 import { view as renderPromotion } from '../../shared/offlineRound/promotion'
 import ViewOnlyBoard from '../../shared/ViewOnlyBoard'
 import { notesView } from '../../shared/round/notes'
-import { Bounds } from '../../shared/Board'
 import TabNavigation from '../../shared/TabNavigation'
 import TabView from '../../shared/TabView'
 import { loadingBackbutton } from '../../shared/common'
-import * as helper from '../../helper'
 import layout from '../../layout'
 import { chatView } from '../../shared/chat'
 
@@ -25,7 +25,7 @@ import { Tab } from '../tabs'
 import AnalyseCtrl from '../AnalyseCtrl'
 import renderCeval, { EvalBox } from '../ceval/cevalView'
 import renderExplorer, { getTitle as getExplorerTitle } from '../explorer/explorerView'
-import renderCrazy from '../crazy/crazyView'
+import renderCrazy, { renderPlayer as renderCrazyPlayer, renderOpponent as renderCrazyOpponent } from '../crazy/crazyView'
 import { view as renderContextMenu } from '../contextMenu'
 import Replay from './Replay'
 import retroView from '../retrospect/retroView'
@@ -36,29 +36,32 @@ import renderActionsBar from './actionsView'
 
 export function loadingScreen(isPortrait: boolean, color?: Color, curFen?: string) {
   const isSmall = settings.analyse.smallBoard()
-  const boardPos = settings.analyse.boardPosition()
-  const bounds = helper.getBoardBounds(helper.viewportDim(), isPortrait, isSmall)
   return layout.board(
     loadingBackbutton(),
     [
-      viewOnlyBoard(color || 'white', bounds, isSmall, curFen || emptyFen, boardPos),
+      viewOnlyBoard(color || 'white', isSmall, curFen || emptyFen),
       h('div.analyse-tableWrapper', spinner.getVdom('monochrome')),
-      isPortrait && boardPos === '2' ? h('section.analyse_actions_bar') : null,
+      isPortrait ? h('section.analyse_actions_bar') : null,
     ]
   )
 }
 
-export function renderContent(ctrl: AnalyseCtrl, isPortrait: boolean, bounds: Bounds) {
+export function renderContent(ctrl: AnalyseCtrl, isPortrait: boolean) {
   const availTabs = ctrl.availableTabs()
+  const tablet = isTablet()
 
-  return h.fragment({ key: isPortrait ? 'portrait' : 'landscape' }, [
-    renderBoard(ctrl, bounds),
+  return h.fragment({
+    key: 'size' + ctrl.settings.s.smallBoard,
+  }, [
+    renderBoard(ctrl),
     h('div.analyse-tableWrapper', [
-      ctrl.data.game.variant.key === 'crazyhouse' ? renderCrazy(ctrl) : null,
+      ctrl.data.game.variant.key === 'crazyhouse' && (isPortrait || !tablet) ? renderCrazy(ctrl) : null,
+      !isPortrait && tablet ? renderCrazyPlayer(ctrl) : null,
       renderAnalyseTable(ctrl, availTabs),
-      !isPortrait ? renderActionsBar(ctrl) : null,
+      !isPortrait ? renderActionsBar(ctrl, isPortrait) : null,
+      !isPortrait && tablet ? renderCrazyOpponent(ctrl) : null,
     ]),
-    isPortrait ? renderActionsBar(ctrl) : null,
+    isPortrait ? renderActionsBar(ctrl, isPortrait) : null,
   ])
 }
 
@@ -103,17 +106,15 @@ export function renderVariantSelector(ctrl: AnalyseCtrl) {
   )
 }
 
-function viewOnlyBoard(color: Color, bounds: Bounds, isSmall: boolean, fen: string, pos: '1' | '2') {
+function viewOnlyBoard(color: Color, isSmall: boolean, fen: string) {
   return h('section.board_wrapper.analyse-boardWrapper', {
-    className: (isSmall ? 'halfsize ' : '') + 'pos' + pos
-  }, h(ViewOnlyBoard, { orientation: color, bounds, fen }))
+    className: isSmall ? 'halfsize ' : ''
+  }, h(ViewOnlyBoard, { orientation: color, fen }))
 }
 
 function renderOpening(ctrl: AnalyseCtrl) {
   const opening = ctrl.tree.getOpening(ctrl.nodeList) || ctrl.data.game.opening
-  if (opening) return h('div', {
-    key: 'opening-title',
-  }, [
+  if (opening) return h('div', [
     h('strong', opening.eco),
     ' ' + opening.name
   ])
@@ -149,29 +150,24 @@ function renderAnalyseTabs(ctrl: AnalyseCtrl, availTabs: ReadonlyArray<Tab>) {
 function renderTabTitle(ctrl: AnalyseCtrl, curTab: Tab) {
   const defaultTitle = i18n(curTab.title)
   let children: Mithril.Children
-  let key: string
   if (curTab.id === 'moves') {
     const op = renderOpening(ctrl)
     children = [op || defaultTitle]
-    key = op ? 'opening' : curTab.id
   }
   else if (curTab.id === 'ceval') {
     children = [
       h('span', defaultTitle),
-      ctrl.ceval.isSearching() ? h('div.ceval-spinner', 'analyzing ', h('span.fa.fa-spinner.fa-pulse')) : null
+      ctrl.ceval.isSearching() ? h('div.ceval-spinner', h('span.fa.fa-spinner.fa-pulse')) : null
     ]
-    key = ctrl.ceval.isSearching() ? 'searching-ceval' : curTab.id
   }
   else if (curTab.id === 'explorer') {
     children = [getExplorerTitle(ctrl)]
-    key = curTab.id
   }
   else {
     children = [defaultTitle]
-    key = curTab.id
   }
 
-  return h.fragment({ key }, children)
+  return h.fragment({}, children)
 }
 
 function renderReplay(ctrl: AnalyseCtrl) {
@@ -192,7 +188,7 @@ function renderReplay(ctrl: AnalyseCtrl) {
   ])
 }
 
-const TabsContentRendererMap: { [id: string]: (ctrl: AnalyseCtrl) => Mithril.BaseNode } = {
+const TabsContentRendererMap: { [id: string]: (ctrl: AnalyseCtrl) => Mithril.Children } = {
   infos: renderGameInfos,
   moves: renderReplay,
   explorer: renderExplorer,
@@ -203,14 +199,15 @@ const TabsContentRendererMap: { [id: string]: (ctrl: AnalyseCtrl) => Mithril.Bas
 }
 
 function renderAnalyseTable(ctrl: AnalyseCtrl, availTabs: ReadonlyArray<Tab>) {
-  return h('div.analyse-table', {
-    key: 'analyse'
-  }, [
+  return h('div.analyse-table.box', [
     renderAnalyseTabs(ctrl, availTabs),
     h(TabView, {
       className: 'analyse-tabsContent',
       selectedIndex: ctrl.currentTabIndex(availTabs),
-      contentRenderers: availTabs.map(t => () => TabsContentRendererMap[t.id](ctrl)),
+      tabs: availTabs.map(t => ({
+        id: t.id,
+        f: () => TabsContentRendererMap[t.id](ctrl)
+      })),
       onTabChange: ctrl.onTabChange,
       boardView: true,
     }),

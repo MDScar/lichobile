@@ -1,6 +1,8 @@
-import * as h from 'mithril/hyperscript'
+import * as Mithril from 'mithril'
+import h from 'mithril/hyperscript'
 import i18n  from '../../../i18n'
-import { handleXhrError, shallowEqual } from '../../../utils'
+import { handleXhrError } from '../../../utils'
+import { shallowEqual } from '../../../utils/object'
 import redraw from '../../../utils/redraw'
 import { batchRequestAnimationFrame } from '../../../utils/batchRAF'
 import * as gameApi from '../../../lichess/game'
@@ -15,33 +17,26 @@ import AnalyseCtrl from '../AnalyseCtrl'
 import drawAcplChart from '../charts/acpl'
 import drawMoveTimesChart from '../charts/moveTimes'
 
-export default function renderAnalysis(ctrl: AnalyseCtrl): Mithril.BaseNode {
-  const isPortrait = helper.isPortrait()
-  const vd = helper.viewportDim()
+export default function renderAnalysis(ctrl: AnalyseCtrl): Mithril.Child {
   const d = ctrl.data
 
   return h('div.analyse-gameAnalysis.native_scroller', [
-    d.analysis ? renderAnalysisGraph(ctrl, vd, isPortrait) :
+    d.analysis ? renderAnalysisGraph(ctrl) :
       ctrl.study ? renderStudyAnalysisRequest(ctrl) : renderGameAnalysisRequest(ctrl),
-    d.game.moveCentis ? renderMoveTimes(ctrl, d.game.moveCentis, vd, isPortrait) : null
+    d.game.moveCentis ? renderMoveTimes(ctrl, d.game.moveCentis) : null
   ])
 }
 
-function renderAnalysisGraph(ctrl: AnalyseCtrl, vd: helper.ViewportDim, isPortrait: boolean) {
-  return h('div.analyse-computerAnalysis', {
-    key: 'analysis'
-  }, [
+function renderAnalysisGraph(ctrl: AnalyseCtrl) {
+  return h('div.analyse-computerAnalysis', [
     h('strong.title', i18n('computerAnalysis')),
     ctrl.analysisProgress ?
     h('div.analyse-gameAnalysis_chartPlaceholder', spinner.getVdom('monochrome')) :
-    h('svg#acpl-chart.analyse-chart', {
-      key: 'chart',
-      width: isPortrait ? vd.vw : vd.vw - vd.vh + helper.headerHeight,
-      height: 100,
-      oncreate({ dom }: Mithril.DOMNode) {
+    h('div.analyse-chart', {
+      oncreate({ dom }: Mithril.VnodeDOM<any, any>) {
         setTimeout(() => {
-          this.updateCurPly = drawAcplChart(dom as SVGElement, ctrl.data, ctrl.node.ply)
-        }, 100)
+          this.updateCurPly = drawAcplChart(dom as HTMLElement, ctrl.data, ctrl.node.ply)
+        }, 200)
       },
       onupdate() {
         if (this.updateCurPly) batchRequestAnimationFrame(() => {
@@ -98,11 +93,9 @@ const AcplSummary: Mithril.Component<{
 }
 
 function renderGameAnalysisRequest(ctrl: AnalyseCtrl) {
-  return h('div.analyse-computerAnalysis.request', {
-    key: 'request-analysis'
-  }, [
+  return h('div.analyse-computerAnalysis.request', [
     ctrl.analysisProgress ? h('div.analyse-requestProgress', [
-      h('span', 'Analysis in progress'),
+      h('span', i18n('waitingForAnalysis')),
       spinner.getVdom('monochrome')
     ]) : h('button.fatButton', {
       oncreate: helper.ontapXY(() => {
@@ -118,9 +111,7 @@ function renderGameAnalysisRequest(ctrl: AnalyseCtrl) {
 }
 
 function renderStudyAnalysisRequest(ctrl: AnalyseCtrl) {
-  return h('div.analyse-computerAnalysis.request', {
-    key: 'request-analysis'
-  }, ctrl.mainline.length < 5 ? h('p', 'The study is too short to be analysed.') :
+  return h('div.analyse-computerAnalysis.request', ctrl.mainline.length < 5 ? h('p', 'The study is too short to be analysed.') :
       !ctrl.study!.canContribute() ? h('p', 'Only the study contributors can request a computer analysis') : [
         h('p', [
           'Get a full server-side computer analysis of the main line.',
@@ -128,7 +119,7 @@ function renderStudyAnalysisRequest(ctrl: AnalyseCtrl) {
           'Make sure the chapter is complete, for you can only request analysis once.'
         ]),
         ctrl.analysisProgress ? h('div.analyse-requestProgress', [
-          h('span', 'Analysis in progress'),
+          h('span', i18n('waitingForAnalysis')),
           spinner.getVdom('monochrome')
         ]) : h('button.fatButton', {
           oncreate: helper.ontapXY(() => {
@@ -141,19 +132,14 @@ function renderStudyAnalysisRequest(ctrl: AnalyseCtrl) {
   )
 }
 
-function renderMoveTimes(ctrl: AnalyseCtrl, moveCentis: number[], vd: helper.ViewportDim, isPortrait: boolean) {
-  return h('div.analyse-moveTimes', {
-    key: 'move-times'
-  }, [
+function renderMoveTimes(ctrl: AnalyseCtrl, moveCentis: number[]) {
+  return h('div.analyse-moveTimes', [
     h('strong.title', i18n('moveTimes')),
-    h('svg#moveTimes-chart.analyse-chart', {
-      key: 'movetimes-chart',
-      width: isPortrait ? vd.vw : vd.vw - vd.vh + helper.headerHeight,
-      height: 150,
-      oncreate({ dom }: Mithril.DOMNode) {
+    h('div.analyse-chart', {
+      oncreate({ dom }: Mithril.VnodeDOM<any, any>) {
         setTimeout(() => {
-          this.updateCurPly = drawMoveTimesChart(dom as SVGElement, ctrl.data, moveCentis, ctrl.node.ply)
-        }, 100)
+          this.updateCurPly = drawMoveTimesChart(dom as HTMLElement, ctrl.data, moveCentis, ctrl.node.ply)
+        }, 200)
       },
       onupdate() {
         if (this.updateCurPly) batchRequestAnimationFrame(() => {

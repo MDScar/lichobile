@@ -1,3 +1,6 @@
+.analyse-clock
+  font-family 'Roboto'
+
 .analyseSettings
   font-size 0.9em
   label[for='showComments']
@@ -18,8 +21,6 @@
   flex-grow 0
   flex-shrink 0
   align-self center
-  &.pos2
-    order 2
 
 .analyse-table
   position relative
@@ -32,6 +33,8 @@
   flex-flow row nowrap
   align-items center
   align-content center
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    flex 0 0 40px
 
 .analyse-tabs
   flex 1 1 auto
@@ -46,6 +49,7 @@
     padding 0 0.5em
     overflow hidden
     white-space nowrap
+    text-overflow ellipsis
     > div
       overflow hidden
       text-overflow ellipsis
@@ -79,31 +83,29 @@
   flex-flow column nowrap
   min-width 0 // fix width bug on landscape
   min-height 0 // fix chrome 73 regression
+  @media only screen and (orientation: portrait) and (min-width 768px) and (min-height 768px)
+    margin 0 3vw
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    margin 3vh
 
 .analyse-table
   flex-flow column nowrap
   font-size 0.9em
   overflow hidden
 
-.analyse-tabsContent
-  background lighten(bgdark, 5%)
-  flex 1 1 auto
-  min-height 0 // fix chrome 73 regression
-  > .tab-content
-    > div
-      flex-grow 1
-      width 100%
-    @media only screen and (orientation: landscape)
-      width 'calc(100vw - 100vh + %s)' % headerHeight
-    @media only screen and (orientation: landscape) and (aspect-ratio 4/3), (orientation: landscape) and (device-aspect-ratio 4/3), (orientation landscape) and (device-aspect-ratio 3/4)
-      width 'calc(100vw - 88vh + %s)' % headerHeight
+.analyse-chart
+  height 150px
 
 .analyse_actions_bar
-  order 3
   flex 0 0 40px
   padding 0
   width 100%
   overflow hidden
+  @media only screen and (orientation: landscape) and (min-width 768px) and (min-height 768px)
+    flex 0 0 110px
+    flex-flow row wrap
+    > .action_bar_button
+      flex 1 1 33%
 
 .analyse-infosBox
   flex 1 1 40%
@@ -277,16 +279,12 @@ comment
   text-overflow ellipsis
 
 .view-container.light
-  .tabs-navigation.analyse
-    > .tab-button
-      > .chip
-        background goldDark
 
   .analyse-fixedBar
     background-color bglight
 
   .analyse-header
-    background-color inherit
+    background-color themeBgLightHeader
     border-bottom 1px solid borderLightGray
     .tab-button
       color textGray
@@ -332,9 +330,6 @@ comment
 
   .analyse-header
     background-color transpBlack06
-
-  .analyse-tabsContent
-    background-color transpBlack05
 
   .tabs-navigation.analyse
     background-color initial

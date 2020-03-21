@@ -1,3 +1,5 @@
+import * as Mithril from 'mithril'
+import h from 'mithril/hyperscript'
 import { batchRequestAnimationFrame } from '../../utils/batchRAF'
 import * as utils from '../../utils'
 import * as playerApi from '../../lichess/player'
@@ -38,7 +40,7 @@ export default {
     const player = g.players[perspectiveColor]
 
     return (
-      <li data-id={g.id} data-pid={player.id} className={`userGame ${evenOrOdd}${withStar}`}>
+      <li data-id={g.id} data-pid={player.id} className={`list_item userGame ${evenOrOdd}${withStar}`}>
         {renderBoard(g.fen, perspectiveColor, boardTheme)}
         <div className="userGame-infos">
           <div className="userGame-header">
@@ -99,8 +101,8 @@ function renderBoard(fen: string, orientation: Color, boardTheme: string) {
   ].join(' ')
 
   return (
-    <div className={boardClass} key={fen}
-      oncreate={({ dom }: Mithril.DOMNode) => {
+    <div className={boardClass}
+      oncreate={({ dom }: Mithril.VnodeDOM<any, any>) => {
         const img = document.createElement('img')
         img.className = 'cg-board'
         img.src = 'data:image/svg+xml;utf8,' + makeBoard(fen, orientation)
@@ -121,6 +123,9 @@ function renderPlayer(players: { white: UserGamePlayer, black: UserGamePlayer}, 
   if (player.user) playerName = playerApi.lightPlayerName(player.user)
   else if (player.aiLevel) {
     playerName = playerApi.aiName({ ai: player.aiLevel })
+  }
+  else if (player.name) {
+    playerName = player.name
   }
   else playerName = 'Anonymous'
 

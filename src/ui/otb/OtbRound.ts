@@ -1,3 +1,4 @@
+import { Plugins, AppState, PluginListenerHandle } from '@capacitor/core'
 import sound from '../../sound'
 import router from '../../router'
 import Chessground from '../../chessground/Chessground'
@@ -23,8 +24,8 @@ import actions from './actions'
 import newGameMenu, { NewOtbGameCtrl } from './newOtbGame'
 import importGamePopup, { Controller as ImportGameController } from './importGamePopup'
 
-import { IChessClock, ClockTypeWithNone } from '../shared/clock/interfaces'
-import clockSet from './clockSet'
+import clockSet from '../shared/clock/clockSet'
+import { IChessClock, ClockType } from '../shared/clock/interfaces'
 
 interface InitPayload {
   variant: VariantKey
@@ -42,6 +43,8 @@ export default class OtbRound implements OtbRoundInterface, PromotingInterface {
   public vm: OtbVM
   public clock?: IChessClock
   public moveList: boolean
+
+  private appStateListener: PluginListenerHandle
 
   public constructor(
     saved?: StoredOfflineGame | null,
@@ -67,11 +70,10 @@ export default class OtbRound implements OtbRoundInterface, PromotingInterface {
       if (setupVariant) {
         settings.otb.variant(setupVariant)
       }
+
+      redraw()
     }
-    else {
-      if (!saved || saved.ply === 0)
-        this.newGameMenu.open()
-    }
+    else if (!saved || saved.ply === 0) this.newGameMenu.open()
 
     const currentVariant = <VariantKey>settings.otb.variant()
     if (!setupFen) {
@@ -79,12 +81,21 @@ export default class OtbRound implements OtbRoundInterface, PromotingInterface {
         try {
           this.init(saved.data, saved.situations, saved.ply)
         } catch (e) {
-          this.startNewGame(currentVariant, undefined, settings.otb.clock.clockType())
+          this.startNewGame(currentVariant, undefined, settings.otb.clockType())
         }
       } else {
-        this.startNewGame(currentVariant, undefined, settings.otb.clock.clockType())
+        this.startNewGame(currentVariant, undefined, settings.otb.clockType())
       }
     }
+
+    this.appStateListener = Plugins.App.addListener('appStateChange', (state: AppState) => {
+      if (!state.isActive) this.saveClock()
+    })
+  }
+
+  public unload() {
+    this.appStateListener.remove()
+    this.saveClock()
   }
 
   public init(data: OfflineGameData, situations: Array<chess.GameSituation>, ply: number) {
@@ -125,7 +136,7 @@ export default class OtbRound implements OtbRoundInterface, PromotingInterface {
     redraw()
   }
 
-  public startNewGame(variant: VariantKey, setupFen?: string, clockType?: ClockTypeWithNone) {
+  public startNewGame(variant: VariantKey, setupFen?: string, clockType?: ClockType | 'none') {
     const payload: InitPayload = {
       variant
     }
@@ -133,7 +144,8 @@ export default class OtbRound implements OtbRoundInterface, PromotingInterface {
       payload.fen = setupFen
     }
 
-    const clock = clockType ? clockSet[clockType](this.onFlag) : null
+    const clock = clockType && clockType !== 'none' ?
+      clockSet[clockType](this.onFlag) : null
 
     chess.init(payload)
     .then((data: chess.InitResponse) => {
@@ -191,7 +203,7 @@ export default class OtbRound implements OtbRoundInterface, PromotingInterface {
   public sharePGN = () => {
     this.replay.pgn('White', 'Black')
     .then((data: chess.PgnDumpResponse) =>
-      window.plugins.socialsharing.share(data.pgn)
+      Plugins.LiShare.share({ text: data.pgn })
     )
   }
 

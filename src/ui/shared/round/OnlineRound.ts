@@ -1,8 +1,9 @@
-import * as throttle from 'lodash/throttle'
+import * as Mithril from 'mithril'
+import { Capacitor, Plugins, AppState, PluginListenerHandle } from '@capacitor/core'
+import throttle from 'lodash-es/throttle'
 import Chessground from '../../../chessground/Chessground'
 import * as cg from '../../../chessground/interfaces'
 import redraw from '../../../utils/redraw'
-import { saveOfflineGameData, removeOfflineGameData } from '../../../utils/offlineGames'
 import { hasNetwork, boardOrientation, handleXhrError } from '../../../utils'
 import * as sleepUtils from '../../../utils/sleep'
 import session from '../../../session'
@@ -40,6 +41,7 @@ interface VM {
   showingActions: boolean
   showingShareActions: boolean
   confirmResign: boolean
+  confirmDraw: boolean
   goneBerserk: {
     [index: string]: boolean
   },
@@ -78,6 +80,10 @@ export default class OnlineRound implements OnlineRoundInterface {
   private clockTimeoutId!: number
   private blur: boolean
 
+  private readonly playableOnInit: boolean
+
+  private appStateListener: PluginListenerHandle
+
   public constructor(
     goingBack: boolean,
     id: string,
@@ -99,6 +105,8 @@ export default class OnlineRound implements OnlineRoundInterface {
     this.zenModeEnabled = settings.game.zenMode()
     this.blur = false
 
+    this.playableOnInit = gameApi.isPlayerPlaying(this.data)
+
     this.vm = {
       ply: this.lastPly(),
       flip: flipped,
@@ -117,6 +125,7 @@ export default class OnlineRound implements OnlineRoundInterface {
       showingActions: false,
       showingShareActions: false,
       confirmResign: false,
+      confirmDraw: false,
       goneBerserk: {
         [this.data.player.color]: !!this.data.player.berserk,
         [this.data.opponent.color]: !!this.data.opponent.berserk
@@ -172,7 +181,9 @@ export default class OnlineRound implements OnlineRoundInterface {
     this.makeCorrespondenceClock()
     if (this.correspondenceClock) this.clockIntervId = setInterval(this.correspondenceClockTick, 6000)
 
-    document.addEventListener('resume', this.onResume)
+    this.appStateListener = Plugins.App.addListener('appStateChange', (state: AppState) => {
+      if (state.isActive) this.onResume()
+    })
 
     redraw()
   }
@@ -182,7 +193,7 @@ export default class OnlineRound implements OnlineRoundInterface {
 
   public goToAnalysis = () => {
     const d = this.data
-    router.set(`/analyse/online/${d.game.id}/${boardOrientation(d)}?ply=${this.vm.ply}&curFen=${d.game.fen}`)
+    router.set(`/analyse/online/${d.game.id}/${boardOrientation(d)}?ply=${this.vm.ply}&curFen=${d.game.fen}`, !this.playableOnInit)
   }
 
   public openUserPopup = (position: string, userId: string) => {
@@ -342,7 +353,7 @@ export default class OnlineRound implements OnlineRoundInterface {
     } else {
       this.socketSendMoveOrDrop(move, isPremove, sendBlur)
       if (this.data.game.speed === 'correspondence' && !hasNetwork()) {
-        window.plugins.toast.show('You need to be connected to Internet to send your move.', 'short', 'center')
+        Plugins.LiToast.show({ text: 'You need to be connected to Internet to send your move.', duration: 'short' })
       }
     }
   }
@@ -387,7 +398,7 @@ export default class OnlineRound implements OnlineRoundInterface {
         this.socketSendMoveOrDrop(this.vm.dropToSubmit)
       }
       if (this.data.game.speed === 'correspondence' && !hasNetwork()) {
-        window.plugins.toast.show('You need to be connected to Internet to send your move.', 'short', 'center')
+        Plugins.LiToast.show({ text: 'You need to be connected to Internet to send your move.', duration: 'short' })
       }
       this.vm.moveToSubmit = null
       this.vm.dropToSubmit = null
@@ -404,7 +415,9 @@ export default class OnlineRound implements OnlineRoundInterface {
     if (playing) this.lastMoveMillis = performance.now()
 
     if (this.vm.submitFeedback && this.vm.submitFeedback[0] + 1 === o.ply) {
-      const duration = this.vm.submitFeedback[1] - performance.now()
+      const feebackDuration = this.data.game.speed === 'correspondence' ?
+        Math.max(500 - (performance.now() - this.vm.submitFeedback[1]), 0) :
+        0
       setTimeout(() => {
         this.vm.submitFeedback = undefined
         if (playing) {
@@ -412,7 +425,7 @@ export default class OnlineRound implements OnlineRoundInterface {
           vibrate.quick()
         }
         redraw()
-      }, Math.max(500 - duration, 0))
+      }, feebackDuration)
     }
     d.game.turns = o.ply
     d.game.player = o.ply % 2 === 0 ? 'white' : 'black'
@@ -549,7 +562,11 @@ export default class OnlineRound implements OnlineRoundInterface {
 
     if (this.data.game.speed === 'correspondence') {
       session.refresh()
-      saveOfflineGameData(this.id, this.data)
+      .then(() => {
+        if (Capacitor.platform === 'ios') {
+          Plugins.Badge.setNumber({ badge: session.myTurnGames().length })
+        }
+      })
     }
   }
 
@@ -586,15 +603,16 @@ export default class OnlineRound implements OnlineRoundInterface {
     this.userJump(this.lastPly())
     this.chessground.stop()
 
+    if (this.vm.submitFeedback) {
+      this.vm.submitFeedback = undefined
+    }
+
     if (o.ratingDiff) {
       d.player.ratingDiff = o.ratingDiff[d.player.color]
       d.opponent.ratingDiff = o.ratingDiff[d.opponent.color]
     }
     if (this.clock && o.clock) this.clock.setClock(d, o.clock.wc * .01, o.clock.bc * .01)
 
-    if (this.data.game.speed === 'correspondence') {
-      removeOfflineGameData(this.data.url.round.substr(1))
-    }
     if (d.game.turns > 1) {
       sound.dong()
       vibrate.quick()
@@ -602,7 +620,7 @@ export default class OnlineRound implements OnlineRoundInterface {
     if (!this.data.player.spectator) {
       session.backgroundRefresh()
       sleepUtils.allowSleepAgain()
-      window.plugins.toast.show(this.gameStatus(), 'short', 'center')
+      Plugins.LiToast.show({ text: this.gameStatus(), duration: 'short' })
     }
     this.score === undefined
   }
@@ -636,9 +654,7 @@ export default class OnlineRound implements OnlineRoundInterface {
   public unload() {
     clearTimeout(this.clockTimeoutId)
     clearInterval(this.clockIntervId)
-    document.removeEventListener('resume', this.onResume)
-    if (this.chat) this.chat.unload()
-    if (this.notes) this.notes.unload()
+    this.appStateListener.remove()
   }
 
   private makeCorrespondenceClock() {

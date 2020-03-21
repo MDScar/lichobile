@@ -1,13 +1,10 @@
+import * as Mithril from 'mithril'
 import * as helper from '../helper'
 import ViewOnlyBoard from './ViewOnlyBoard'
 import { noop } from '../../utils'
 import { FeaturedGame } from '../../lichess/interfaces'
-import * as h from 'mithril/hyperscript'
-
-interface Bounds {
-  width: number
-  height: number
-}
+import { time as renderTime } from '../../lichess/game'
+import h from 'mithril/hyperscript'
 
 export interface Attrs {
   readonly fen: string
@@ -16,11 +13,9 @@ export interface Attrs {
   readonly gameObj?: FeaturedGame
   readonly boardTitle?: Mithril.Children
   readonly lastMove?: string
-  readonly bounds?: Bounds
   readonly customPieceTheme?: string
   readonly variant?: VariantKey
   readonly fixed?: boolean
-  readonly delay?: Millis
 }
 
 interface State {
@@ -39,9 +34,13 @@ const MiniBoard: Mithril.Component<Attrs, State> = {
     const { gameObj, boardTitle } = attrs
 
     return (
-      <div className="mini_board" oncreate={helper.ontapY(() => this.link())}>
-        <div className="board_wrapper">
-          {h(ViewOnlyBoard, attrs)}
+      <div className="mini_board_container">
+        <div className="mini_board" oncreate={helper.ontapY(() => this.link())}>
+          <div className="mini_board_helper">
+            <div className="mini_board_wrapper">
+              {h(ViewOnlyBoard, attrs)}
+            </div>
+          </div>
         </div>
         { gameObj ?
           renderVsBloc(gameObj) : boardTitle ?
@@ -62,21 +61,22 @@ function renderVsBloc(gameObj: FeaturedGame) {
       <div className="antagonists">
         <div className="player">
           {player.rank ? `#${player.rank} ` : ''}
-          {player.title ? <span className="userTitle">{player.title}&nbsp;</span> : null}
           {player.name}
-        </div>
-        <div className="opponent">
-          {opponent.rank ? `#${opponent.rank} ` : ''}
-          {opponent.title ? <span className="userTitle">{opponent.title}&nbsp;</span> : null}
-          {opponent.name}
-        </div>
-      </div>
-      <div className="ratingAndTime">
-        <div>
+          <br/>
+          {player.title ? <span className="userTitle">{player.title}&nbsp;</span> : null}
           {player.rating}
           {player.berserk ? <span className="berserk" data-icon="`" /> : null }
         </div>
-        <div>
+        { gameObj.clock ?
+          <div className="time">
+            {renderTime(gameObj)}
+          </div> : null
+        }
+        <div className="opponent">
+          {opponent.rank ? `#${opponent.rank} ` : ''}
+          {opponent.name}
+          <br/>
+          {opponent.title ? <span className="userTitle">{opponent.title}&nbsp;</span> : null}
           {opponent.rating}
           {opponent.berserk ? <span className="berserk" data-icon="`" /> : null }
         </div>
